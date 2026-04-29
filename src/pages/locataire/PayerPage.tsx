@@ -16,7 +16,6 @@ import {
   Loader2, 
   ShieldCheck, 
   SmartphoneNfc,
-  Upload,
   AlertCircle,
   Timer,
   Receipt
@@ -29,14 +28,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { useAuth } from '@/contexts/AuthContext';
-import { 
-  useLocataires, 
-  useAllUnites, 
-  useMaisons, 
-  usePaiements 
-} from '@/hooks/useData';
-import { OperateurMoMo } from '@/types/immoafrik';
+import { FileUploader } from '@/components/upload/FileUploader';
+import { supabase } from '@/lib/supabase';
+import { StatutPaiement, TypePaiement, OperateurMoMo } from '@/types/immoafrik';
 
 const STEPS = ['Récapitulatif', 'Opérateur', 'Instructions', 'Confirmation'];
 
@@ -47,6 +41,7 @@ export default function PayerPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   const [hasPaid, setHasPaid] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
 
   const { profile, isLoading: authLoading } = useAuth();
   const { locataires, isLoading: locatairesLoading } = useLocataires();
@@ -92,12 +87,46 @@ export default function PayerPage() {
   const handleNext = () => setStep(prev => Math.min(prev + 1, 5));
   const handleBack = () => setStep(prev => Math.max(prev - 1, 1));
 
-  const submitProof = () => {
+  const submitProof = async () => {
+    if (!tenant || !unit || !house) return;
+
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    try {
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth() + 1; // getMonth() returns 0-11
+      const currentYear = currentDate.getFullYear();
+
+      const paymentData = {
+        locataire_id: tenant.id,
+        unite_id: unit.id,
+        maison_id: house.id,
+        mois: currentMonth,
+        annee: currentYear,
+        montant: totalDue,
+        type: TypePaiement.MOMO,
+        statut: StatutPaiement.EN_ATTENTE,
+        reference_immo: refCode,
+        numero_transaction_momo: transactionId,
+        operateur_momo: selectedOp,
+        capture_ecran_url: uploadedFiles.length > 0 ? uploadedFiles[0] : null,
+        date_paiement: currentDate.toISOString(),
+        confirme_par_proprio: false,
+        notes: `Paiement soumis par ${tenant.prenom} ${tenant.nom}`
+      };
+
+      const { error } = await supabase
+        .from('paiements')
+        .insert([paymentData]);
+
+      if (error) throw error;
+
       setStep(5);
-    }, 2000);
+    } catch (error) {
+      console.error('Erreur lors de la soumission du paiement:', error);
+      alert('Erreur lors de la soumission. Veuillez réessayer.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -307,10 +336,17 @@ export default function PayerPage() {
 
                   <div className="space-y-2">
                     <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-4">Capture d'écran (Optionnel)</Label>
-                    <div className="border-2 border-dashed border-slate-200 rounded-[2.5rem] p-12 text-center hover:bg-slate-50 transition-colors cursor-pointer">
-                      <Upload size={32} className="mx-auto text-slate-300 mb-4" />
-                      <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">Choisir une image</p>
-                    </div>
+                    <FileUploader
+                      onUpload={setUploadedFiles}
+                      accept="image/*"
+                      multiple={false}
+                      maxFiles={1}
+                      maxSizeMB={5}
+                      bucket="uploads"
+                      folder="paiements"
+                      label="Glissez votre capture d'écran ici ou cliquez pour sélectionner"
+                      existingFiles={uploadedFiles}
+                    />
                   </div>
                 </div>
 
