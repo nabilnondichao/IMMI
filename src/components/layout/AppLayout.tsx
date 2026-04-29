@@ -4,20 +4,21 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { 
-  LayoutDashboard, 
-  Home, 
-  Receipt, 
-  FileText, 
-  CreditCard, 
-  BarChart3, 
-  Menu, 
-  LogOut, 
-  ChevronLeft, 
+import {
+  LayoutDashboard,
+  Home,
+  Receipt,
+  FileText,
+  CreditCard,
+  BarChart3,
+  Menu,
+  LogOut,
+  ChevronLeft,
   ChevronRight,
   Bell,
   Wallet,
-  BellRing
+  BellRing,
+  Users
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -65,6 +66,7 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
   const ownerItems = [
     { icon: <LayoutDashboard size={20} />, label: 'Dashboard', path: '/dashboard' },
     { icon: <Home size={20} />, label: 'Mes maisons', path: '/dashboard/maisons' },
+    { icon: <Users size={20} />, label: 'Locataires', path: '/dashboard/locataires' },
     { icon: <Receipt size={20} />, label: 'Paiements', path: '/dashboard/paiements', alert: pendingPaymentsCount },
     { icon: <FileText size={20} />, label: 'Contrats', path: '/dashboard/contrats', alert: contractAlertsCount, alertColor: 'bg-amber-500' },
     { icon: <CreditCard size={20} />, label: 'Dépenses', path: '/dashboard/depenses' },

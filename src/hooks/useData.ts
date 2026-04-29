@@ -4,8 +4,15 @@
  */
 
 import useSWR from 'swr';
-import { supabase, Maison, Unite, Locataire, Paiement, Contrat, Depense, MomoConfig, Profile, Reservation } from '../lib/supabase';
+import { supabase, Maison, Unite, Locataire, Paiement, Contrat, Depense, MomoConfig, Profile, Reservation, Avance } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
+
+export function generateReferenceImmo(maisonNom: string, annee: number, mois: number, uniteNom: string): string {
+  const maisonCode = maisonNom.replace(/\s/g, '').substring(0, 3).toUpperCase();
+  const uniteCode = uniteNom.replace(/\s/g, '').toUpperCase();
+  const counter = Date.now().toString().slice(-5);
+  return `IMMO-${maisonCode}-${annee}${String(mois).padStart(2, '0')}-${uniteCode}-${counter}`;
+}
 
 // Generic fetcher for Supabase
 async function fetcher<T>(key: string): Promise<T[]> {
@@ -435,15 +442,21 @@ export async function updateLocataire(id: string, data: Partial<Locataire>) {
   return result;
 }
 
-export async function createPaiement(data: Omit<Paiement, 'id' | 'created_at' | 'updated_at' | 'reference_immo'>) {
+export async function createPaiement(
+  data: Omit<Paiement, 'id' | 'created_at' | 'updated_at' | 'reference_immo'>,
+  maisonNom: string,
+  uniteNom: string
+) {
   if (!supabase) throw new Error('Supabase not configured');
-  
+
+  const reference_immo = generateReferenceImmo(maisonNom, data.annee, data.mois, uniteNom);
+
   const { data: result, error } = await supabase
     .from('paiements')
-    .insert(data)
+    .insert({ ...data, reference_immo })
     .select()
     .single();
-  
+
   if (error) throw error;
   return result;
 }
@@ -565,6 +578,55 @@ export async function updateReservation(id: string, data: Partial<Reservation>) 
     .select()
     .single();
 
+  if (error) throw error;
+  return result;
+}
+
+export async function createDepense(data: Omit<Depense, 'id' | 'created_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase.from('depenses').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function deleteDepense(id: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('depenses').delete().eq('id', id);
+  if (error) throw error;
+}
+
+export function useAvances(locataireId?: string) {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<Avance[]>(
+    user ? async () => {
+      if (!supabase) return [];
+      let query = supabase.from('avances').select('*').eq('proprietaire_id', user.id);
+      if (locataireId) query = query.eq('locataire_id', locataireId);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } : null,
+    { fallbackData: [] }
+  );
+  return { avances: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function createAvance(data: Omit<Avance, 'id' | 'created_at' | 'updated_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase.from('avances').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function imputerAvance(avanceId: string, montantImpute: number, montantRestantActuel: number) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const nouveau = Math.max(0, montantRestantActuel - montantImpute);
+  const { data: result, error } = await supabase
+    .from('avances')
+    .update({ montant_restant: nouveau, updated_at: new Date().toISOString() })
+    .eq('id', avanceId)
+    .select()
+    .single();
   if (error) throw error;
   return result;
 }

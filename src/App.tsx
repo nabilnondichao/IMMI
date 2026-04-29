@@ -19,6 +19,8 @@ import ImpotsPage from './pages/dashboard/impots/ImpotsPage';
 import AlertSettingsPage from './pages/dashboard/parametres/AlertSettingsPage';
 import PayerPage from './pages/locataire/PayerPage';
 import LocataireDashboard from './pages/locataire/LocataireDashboard';
+import DepensesPage from './pages/dashboard/depenses/DepensesPage';
+import LocatairesPage from './pages/dashboard/locataires/LocatairesPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import UnitesPublique from './pages/UnitesPublique';
@@ -82,6 +84,16 @@ export default function App() {
         <Route path="/dashboard/alertes" element={
           <ProtectedRoute requiredRole="proprietaire">
             <AppLayout userType="proprietaire"><AlertSettingsPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/depenses" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><DepensesPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/locataires" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><LocatairesPage /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/dashboard/momo" element={

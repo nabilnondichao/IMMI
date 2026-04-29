@@ -201,3 +201,18 @@ export interface Reservation {
   source: 'direct' | 'whatsapp' | 'booking' | 'airbnb';
   created_at: string;
 }
+
+export interface Avance {
+  id: string;
+  locataire_id: string;
+  unite_id: string;
+  maison_id: string;
+  proprietaire_id: string;
+  type: 'loyer' | 'eau' | 'electricite';
+  montant_initial: number;
+  montant_restant: number;
+  date_depot: string;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
