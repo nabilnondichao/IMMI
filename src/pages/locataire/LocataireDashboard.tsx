@@ -28,13 +28,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { useAuth } from '@/contexts/AuthContext';
 import { 
-  LOCATAIRES, 
-  MAISONS, 
-  UNITES, 
-  PAIEMENTS, 
-  CONTRATS 
-} from '@/lib/mock-data';
+  useLocataires, 
+  useAllUnites, 
+  useMaisons, 
+  usePaiements, 
+  useContrats 
+} from '@/hooks/useData';
 import { StatutPaiement, StatutUnite } from '@/types/immoafrik';
 
 type View = 'accueil' | 'historique' | 'documents' | 'profil';
@@ -42,17 +43,27 @@ type View = 'accueil' | 'historique' | 'documents' | 'profil';
 export default function LocataireDashboard() {
   const navigate = useNavigate();
   const [currentView, setCurrentView] = useState<View>('accueil');
+  const { profile, isLoading: authLoading } = useAuth();
 
-  // Simulation du locataire connecté : Kofi Mensah
-  const tenant = LOCATAIRES.find(l => l.nom === 'Mensah' && l.prenom === 'Kofi') || LOCATAIRES[0];
-  const unit = UNITES.find(u => u.id === tenant.unite_id);
-  const house = MAISONS.find(m => m.id === unit?.maison_id);
-  const contract = CONTRATS.find(c => c.locataire_id === tenant.id);
+  // Fetch data
+  const { locataires, isLoading: locatairesLoading } = useLocataires();
+  const { unites, isLoading: unitesLoading } = useAllUnites();
+  const { maisons, isLoading: maisonsLoading } = useMaisons();
+  const { paiements, isLoading: paiementsLoading } = usePaiements();
+  const { contrats, isLoading: contratsLoading } = useContrats();
+
+  const isLoading = authLoading || locatairesLoading || unitesLoading || maisonsLoading || paiementsLoading || contratsLoading;
+
+  // Get current tenant data
+  const tenant = locataires.find(l => l.id === profile?.id);
+  const unit = unites.find(u => u.id === tenant?.unite_id);
+  const house = maisons.find(m => m.id === unit?.maison_id);
+  const contract = contrats.find(c => c.locataire_id === tenant?.id);
 
   // --- STATS & LOGIC ---
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
-  const monthlyPayment = PAIEMENTS.find(p => p.locataire_id === tenant.id && p.mois === currentMonth && p.annee === currentYear);
+  const monthlyPayment = paiements.find(p => p.locataire_id === tenant?.id && p.mois === currentMonth && p.annee === currentYear);
   
   const isPaid = monthlyPayment?.statut === StatutPaiement.PAYE;
   const isPending = monthlyPayment?.statut === StatutPaiement.EN_ATTENTE;
@@ -64,16 +75,33 @@ export default function LocataireDashboard() {
     return new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(new Date(2024, m - 1));
   };
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A1A2E] mx-auto mb-4"></div>
+        <p className="text-slate-500">Chargement de votre tableau de bord...</p>
+      </div>
+    );
+  }
+
+  if (!tenant) {
+    return (
+      <div className="p-12 text-center">
+        <p className="text-slate-500 font-bold">Profil locataire non trouvé.</p>
+      </div>
+    );
+  }
+
   const renderAccueil = () => (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-black text-[#1A1A2E] tracking-tight">Bonjour {tenant.prenom} 👋</h2>
+          <h2 className="text-2xl font-black text-[#1A1A2E] tracking-tight">Bonjour {tenant?.prenom} 👋</h2>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Heureux de vous revoir</p>
         </div>
         <div className="w-12 h-12 bg-[#1A1A2E] rounded-2xl flex items-center justify-center font-black text-white text-sm shadow-xl">
-          {tenant.prenom[0]}{tenant.nom[0]}
+          {tenant?.prenom[0]}{tenant?.nom[0]}
         </div>
       </div>
 
@@ -192,7 +220,7 @@ export default function LocataireDashboard() {
       <h2 className="text-2xl font-black text-[#1A1A2E] tracking-tight">Historique</h2>
       <div className="bg-white rounded-[2.5rem] shadow-sm border border-slate-100 overflow-hidden">
         <div className="divide-y divide-slate-50">
-          {PAIEMENTS.filter(p => p.locataire_id === tenant.id).sort((a, b) => b.annee !== a.annee ? b.annee - a.annee : b.mois - a.mois).map(p => (
+          {paiements.filter(p => p.locataire_id === tenant?.id).sort((a, b) => b.annee !== a.annee ? b.annee - a.annee : b.mois - a.mois).map(p => (
             <div key={p.id} className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black ${p.statut === StatutPaiement.PAYE ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
@@ -279,10 +307,10 @@ export default function LocataireDashboard() {
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="text-center">
         <div className="w-24 h-24 bg-[#1A1A2E] rounded-[2rem] mx-auto flex items-center justify-center font-black text-white text-3xl shadow-2xl mb-4">
-          {tenant.prenom[0]}{tenant.nom[0]}
+          {tenant?.prenom[0]}{tenant?.nom[0]}
         </div>
-        <h2 className="text-2xl font-black text-[#1A1A2E] tracking-tight">{tenant.prenom} {tenant.nom}</h2>
-        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Locataire • GDM-R1</p>
+        <h2 className="text-2xl font-black text-[#1A1A2E] tracking-tight">{tenant?.prenom} {tenant?.nom}</h2>
+        <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Locataire • {unit?.nom}</p>
       </div>
 
       <div className="space-y-4">
@@ -304,7 +332,7 @@ export default function LocataireDashboard() {
                 </div>
                 <span className="text-sm font-bold text-slate-700">Numéro Mobile Money</span>
               </div>
-              <span className="text-xs font-bold text-slate-400">{tenant.telephone}</span>
+              <span className="text-xs font-bold text-slate-400">{tenant?.telephone}</span>
             </div>
             <div className="p-6 flex items-center justify-between hover:bg-slate-50 transition-colors">
               <div className="flex items-center gap-4">
