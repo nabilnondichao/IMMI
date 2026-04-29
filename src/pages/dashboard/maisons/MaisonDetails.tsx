@@ -25,12 +25,9 @@ import {
   Download
 } from 'lucide-react';
 import { 
-  MAISONS, 
-  UNITES, 
-  LOCATAIRES, 
-  PAIEMENTS, 
-  getTotalArrieres 
-} from '@/lib/mock-data';
+  useMaisonDetails,
+  usePaiements 
+} from '@/hooks/useData';
 import { StatutPaiement, TypeUnite } from '@/types/immoafrik';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -78,16 +75,25 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 export default function MaisonDetails() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const maison = MAISONS.find(m => m.id === id);
+  
+  const { maison, unites, locataires, isLoading } = useMaisonDetails(id!);
+  const { paiements } = usePaiements();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A1A2E] mx-auto mb-4"></div>
+        <p className="text-slate-500">Chargement des détails...</p>
+      </div>
+    );
+  }
 
   if (!maison) {
     return <div className="p-12 text-center font-bold">Maison non trouvée.</div>;
   }
 
-  const houseUnits = UNITES.filter(u => u.maison_id === maison.id);
-  const houseTenants = LOCATAIRES.filter(l => houseUnits.some(u => u.id === l.unite_id));
-  const totalLoyerAttendu = houseUnits.reduce((sum, u) => sum + u.loyer_mensuel, 0);
-  const occupiedCount = houseUnits.filter(u => u.statut === 'occupé').length;
+  const totalLoyerAttendu = unites.reduce((sum, u) => sum + u.loyer_mensuel, 0);
+  const occupiedCount = unites.filter(u => u.statut === 'occupé').length;
 
   return (
     <div className="p-8 pb-24 lg:pb-8">
@@ -122,7 +128,7 @@ export default function MaisonDetails() {
             </div>
             <div className="bg-white px-6 py-4 rounded-3xl shadow-sm border border-slate-100 text-center">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Occupation</p>
-              <p className="text-lg font-black text-[#B8860B]">{occupiedCount} / {houseUnits.length}</p>
+              <p className="text-lg font-black text-[#B8860B]">{occupiedCount} / {unites.length}</p>
             </div>
           </div>
         </div>
@@ -141,7 +147,7 @@ export default function MaisonDetails() {
         {/* ONGLET UNITÉS */}
         <TabsContent value="unites" className="space-y-6">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-black text-[#1A1A2E] tracking-tight">Liste des unités ({houseUnits.length})</h3>
+            <h3 className="text-lg font-black text-[#1A1A2E] tracking-tight">Liste des unités ({unites.length})</h3>
             
             <Dialog>
               <DialogTrigger asChild>
@@ -195,8 +201,8 @@ export default function MaisonDetails() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-            {houseUnits.map(unit => {
-              const tenant = LOCATAIRES.find(l => l.unite_id === unit.id);
+            {unites.map(unit => {
+              const tenant = locataires.find(l => l.unite_id === unit.id);
               return (
                 <Card key={unit.id} className="rounded-[2.5rem] border-slate-100 shadow-sm hover:border-[#B8860B]/30 transition-all group overflow-hidden">
                   <CardHeader className="p-6 border-b border-slate-50 flex flex-row items-center justify-between bg-slate-50/50">
@@ -269,7 +275,7 @@ export default function MaisonDetails() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {houseTenants.map(tenant => (
+                  {locataires.map(tenant => (
                     <TableRow key={tenant.id} className="hover:bg-slate-50/50 transition-colors">
                       <TableCell className="px-6 py-4">
                         <div className="flex items-center gap-3">
@@ -284,17 +290,17 @@ export default function MaisonDetails() {
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="rounded-lg text-[9px] font-black text-slate-500">
-                          {UNITES.find(u => u.id === tenant.unite_id)?.nom || 'N/A'}
+                          {unites.find(u => u.id === tenant.unite_id)?.nom || 'N/A'}
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        <p className={`text-xs font-black ${getTotalArrieres(tenant.id) > 0 ? 'text-red-500' : 'text-green-500'}`}>
-                          {getTotalArrieres(tenant.id).toLocaleString()} FCFA
+                        <p className={`text-xs font-black ${0 > 0 ? 'text-red-500' : 'text-green-500'}`}>
+                          0 FCFA
                         </p>
                       </TableCell>
                       <TableCell>
-                        <Badge className={`text-[9px] font-black rounded-full ${getTotalArrieres(tenant.id) > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
-                          {getTotalArrieres(tenant.id) > 0 ? 'IMPAYÉ' : 'À JOUR'}
+                        <Badge className={`text-[9px] font-black rounded-full ${0 > 0 ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'}`}>
+                          À JOUR
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right px-6">
@@ -324,9 +330,54 @@ export default function MaisonDetails() {
                 </Button>
               </div>
             </div>
-            <div className="p-12 text-center">
-              <Receipt size={48} className="mx-auto text-slate-100 mb-4" />
-              <p className="text-slate-400 font-bold">Aucun paiement trouvé pour les filtres actuels.</p>
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow className="hover:bg-transparent bg-slate-50/30">
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-6">Locataire</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Montant</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Date</TableHead>
+                    <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Statut</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paiements.slice(0, 10).map(paiement => {
+                    const tenant = locataires.find(l => l.id === paiement.locataire_id);
+                    return (
+                      <TableRow key={paiement.id} className="hover:bg-slate-50/50 transition-colors">
+                        <TableCell className="px-6 py-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-400 text-[10px]">
+                              {tenant?.prenom[0]}{tenant?.nom[0]}
+                            </div>
+                            <div>
+                              <p className="text-sm font-bold text-slate-800 tracking-tight">{tenant?.prenom} {tenant?.nom}</p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell className="text-xs font-black text-slate-800">
+                          {paiement.montant.toLocaleString()} FCFA
+                        </TableCell>
+                        <TableCell className="text-xs font-bold text-slate-600">
+                          {new Date(paiement.created_at).toLocaleDateString('fr-FR')}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={`text-[9px] font-black rounded-full ${paiement.statut === 'paye' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'}`}>
+                            {paiement.statut === 'paye' ? 'PAYÉ' : 'EN ATTENTE'}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                  {paiements.length === 0 && (
+                    <TableRow>
+                      <TableCell colSpan={4} className="h-32 text-center text-slate-400 font-medium italic">
+                        Aucun paiement trouvé.
+                      </TableCell>
+                    </TableRow>
+                  )}
+                </TableBody>
+              </Table>
             </div>
           </Card>
         </TabsContent>
