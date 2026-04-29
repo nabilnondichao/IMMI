@@ -43,7 +43,17 @@ export default function PaymentsPage() {
     mois: String(new Date().getMonth() + 1),
     annee: String(new Date().getFullYear()),
     notes: '',
+    type_charge: 'loyer',
   });
+
+  const TYPE_CHARGES = [
+    { value: 'loyer', label: 'Loyer mensuel' },
+    { value: 'caution', label: 'Caution' },
+    { value: 'eau', label: 'Avance Eau' },
+    { value: 'electricite', label: 'Avance Électricité' },
+    { value: 'vidange_fosse', label: 'Vidange Fosse Septique' },
+    { value: 'autre', label: 'Autre charge' },
+  ];
   const [cashSubmitting, setCashSubmitting] = useState(false);
   const [cashError, setCashError] = useState<string | null>(null);
   const [dernierPaiement, setDernierPaiement] = useState<any>(null);
@@ -461,6 +471,15 @@ export default function PaymentsPage() {
                     </Select>
                   </div>
                   <div className="grid gap-2">
+                    <Label>Type de charge</Label>
+                    <Select value={cashForm.type_charge} onValueChange={v => setCashForm(f => ({ ...f, type_charge: v }))}>
+                      <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {TYPE_CHARGES.map(t => <SelectItem key={t.value} value={t.value}>{t.label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid gap-2">
                     <Label>Note / Commentaire</Label>
                     <Input
                       placeholder="Ex: Paiement en avance, partiel..."
@@ -468,6 +487,9 @@ export default function PaymentsPage() {
                       value={cashForm.notes}
                       onChange={e => setCashForm(f => ({ ...f, notes: e.target.value }))}
                     />
+                  </div>
+                  <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[10px] text-amber-700 font-medium">
+                    💡 Commission ImmoAfrik : <strong>{(parseInt(cashForm.montant || '0') * 3.5 / 100).toLocaleString()} FCFA</strong> (3.5% de {parseInt(cashForm.montant || '0').toLocaleString()} FCFA)
                   </div>
                 </div>
                 <DialogFooter>

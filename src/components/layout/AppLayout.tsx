@@ -21,7 +21,9 @@ import {
   Users,
   TrendingUp,
   Crown,
-  Landmark
+  Landmark,
+  MessageCircle,
+  Percent
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -77,6 +79,8 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <TrendingUp size={20} />, label: 'Analytiques', path: '/dashboard/analytics' },
     { icon: <BarChart3 size={20} />, label: 'Impôts', path: '/dashboard/impots' },
     { icon: <Wallet size={20} />, label: 'MoMo', path: '/dashboard/momo' },
+    { icon: <MessageCircle size={20} />, label: 'Messages WA', path: '/dashboard/messages' },
+    { icon: <Percent size={20} />, label: 'Commission', path: '/dashboard/commission' },
     { icon: <BellRing size={20} />, label: 'Alertes', path: '/dashboard/alertes' },
     { icon: <Crown size={20} />, label: 'Abonnement', path: '/dashboard/abonnement' },
   ];
