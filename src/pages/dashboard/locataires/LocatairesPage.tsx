@@ -8,6 +8,10 @@ import {
   Home,
   Loader2,
   UserCheck,
+  QrCode,
+  Copy,
+  Check,
+  MessageCircle,
   UserX,
   Calendar,
   Edit2,
@@ -19,7 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { useLocataires, useMaisons, useAllUnites, createLocataire, updateLocataire } from '@/hooks/useData';
+import { useLocataires, useMaisons, useAllUnites, createLocataire, updateLocataire, createInvitation, useInvitations } from '@/hooks/useData';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -45,6 +49,10 @@ export default function LocatairesPage() {
   const { locataires, isLoading, refresh } = useLocataires();
   const { maisons } = useMaisons();
   const { unites } = useAllUnites();
+  const { invitations, refresh: refreshInvitations } = useInvitations();
+  const [generatingCode, setGeneratingCode] = useState<string | null>(null);
+  const [codeGenere, setCodeGenere] = useState<{ code: string; locataire: string } | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   const unitesByMaison = useMemo(() => {
     if (maisonFilter === 'all') return unites;
@@ -94,6 +102,33 @@ export default function LocatairesPage() {
     });
     setFormError(null);
     setDialogOpen(true);
+  }
+
+  async function handleGenererCode(locataireId: string) {
+    const loc = locataires.find(l => l.id === locataireId);
+    if (!loc || !user) return;
+    setGeneratingCode(locataireId);
+    try {
+      const inv = await createInvitation({
+        proprietaire_id: user.id,
+        unite_id: loc.unite_id || null,
+        locataire_nom: loc.nom,
+        locataire_prenom: loc.prenom,
+        locataire_telephone: loc.telephone,
+      });
+      setCodeGenere({ code: inv.code, locataire: `${loc.prenom} ${loc.nom}` });
+      refreshInvitations();
+    } catch (err) {
+      alert('Erreur lors de la génération du code.');
+    } finally {
+      setGeneratingCode(null);
+    }
+  }
+
+  function copierCode(code: string) {
+    navigator.clipboard.writeText(code);
+    setCodeCopied(true);
+    setTimeout(() => setCodeCopied(false), 2000);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -286,9 +321,65 @@ export default function LocatairesPage() {
                     </Badge>
                   )}
                 </div>
+
+                {/* Bouton code invitation */}
+                <button
+                  onClick={() => handleGenererCode(loc.id)}
+                  disabled={generatingCode === loc.id}
+                  className="mt-3 w-full flex items-center justify-center gap-2 py-2 rounded-xl bg-[#1A1A2E]/5 hover:bg-[#B8860B]/10 text-[#1A1A2E] hover:text-[#B8860B] transition-all text-xs font-bold"
+                >
+                  {generatingCode === loc.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <QrCode size={14} />
+                  )}
+                  Générer code d'invitation
+                </button>
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* MODAL CODE GÉNÉRÉ */}
+      {codeGenere && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-[#B8860B]/10 rounded-2xl mx-auto flex items-center justify-center mb-4">
+                <QrCode size={32} className="text-[#B8860B]" />
+              </div>
+              <h3 className="text-lg font-black text-[#1A1A2E]">Code d'invitation généré</h3>
+              <p className="text-xs text-slate-500 mt-1">Pour <span className="font-bold">{codeGenere.locataire}</span></p>
+            </div>
+
+            <div className="bg-[#1A1A2E] rounded-2xl p-6 text-center mb-6">
+              <p className="text-3xl font-black text-[#B8860B] tracking-widest font-mono">{codeGenere.code}</p>
+              <p className="text-[10px] text-slate-400 mt-2">Valable 7 jours</p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={() => copierCode(codeGenere.code)}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 font-bold text-sm transition-all"
+              >
+                {codeCopied ? <><Check size={16} className="text-green-500" /> Copié !</> : <><Copy size={16} /> Copier le code</>}
+              </button>
+              <button
+                onClick={() => window.open(`https://wa.me/?text=Bonjour ! Voici votre code d'invitation ImmoAfrik : *${codeGenere.code}* %0AUtilisez ce code pour créer votre compte locataire sur l'application. Valable 7 jours.`, '_blank')}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[#25D366] hover:bg-[#128C7E] text-white font-bold text-sm transition-all"
+              >
+                <MessageCircle size={16} />
+                Envoyer via WhatsApp
+              </button>
+              <button
+                onClick={() => setCodeGenere(null)}
+                className="w-full py-3 rounded-xl text-slate-400 hover:text-slate-600 font-bold text-sm"
+              >
+                Fermer
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

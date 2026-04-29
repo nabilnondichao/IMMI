@@ -21,6 +21,7 @@ import PayerPage from './pages/locataire/PayerPage';
 import LocataireDashboard from './pages/locataire/LocataireDashboard';
 import DepensesPage from './pages/dashboard/depenses/DepensesPage';
 import LocatairesPage from './pages/dashboard/locataires/LocatairesPage';
+import AnalyticsPage from './pages/dashboard/analytics/AnalyticsPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import UnitesPublique from './pages/UnitesPublique';
@@ -94,6 +95,11 @@ export default function App() {
         <Route path="/dashboard/locataires" element={
           <ProtectedRoute requiredRole="proprietaire">
             <AppLayout userType="proprietaire"><LocatairesPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/analytics" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><AnalyticsPage /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/dashboard/momo" element={

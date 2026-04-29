@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ShieldCheck, Copy, Check, ArrowLeft, Building, UserCircle, Loader2, Phone } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
+import { getInvitationByCode, marquerInvitationUtilisee } from '../../hooks/useData';
 
 export default function Inscription() {
   const [activeTab, setActiveTab] = useState<'proprio' | 'locataire'>('proprio');
@@ -11,6 +12,8 @@ export default function Inscription() {
   const [generatedCode, setGeneratedCode] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [ownerFound, setOwnerFound] = useState<{ id: string; nom: string; prenom: string } | null>(null);
+  const [invitationData, setInvitationData] = useState<any>(null);
+  const [modeInvitation, setModeInvitation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [proprietaireCode, setProprietaireCode] = useState('');
@@ -79,7 +82,7 @@ export default function Inscription() {
 
   const handleLocataireSearch = async () => {
     if (!proprietaireCode.trim()) {
-      setError("Veuillez entrer un code propriétaire.");
+      setError("Veuillez entrer un code.");
       return;
     }
 
@@ -92,16 +95,38 @@ export default function Inscription() {
       return;
     }
 
-    // Search for proprietaire by code
+    const code = proprietaireCode.toUpperCase().trim();
+
+    // Essayer d'abord comme code d'invitation (INV-XXXXXX)
+    if (code.startsWith('INV-')) {
+      const inv = await getInvitationByCode(code);
+      if (inv) {
+        setInvitationData(inv);
+        setModeInvitation(true);
+        // Pré-remplir le formulaire locataire
+        if (inv.locataire_prenom) setLocataireForm(f => ({ ...f, prenom: inv.locataire_prenom || '' }));
+        if (inv.locataire_nom) setLocataireForm(f => ({ ...f, nom: inv.locataire_nom || '' }));
+        if (inv.locataire_telephone) setLocataireForm(f => ({ ...f, telephone: inv.locataire_telephone || '' }));
+        setOwnerFound({ id: inv.profiles?.id || inv.proprietaire_id, nom: inv.profiles?.nom || '', prenom: inv.profiles?.prenom || '' });
+        setIsLoading(false);
+        return;
+      } else {
+        setError("Code d'invitation invalide ou expiré.");
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // Sinon chercher comme code propriétaire (IMMO-XXXX)
     const { data, error: searchError } = await supabase
       .from('profiles')
       .select('id, nom, prenom')
-      .eq('code_unique', proprietaireCode.toUpperCase())
+      .eq('code_unique', code)
       .eq('role', 'proprietaire')
       .single();
 
     if (searchError || !data) {
-      setError("Code propriétaire introuvable. Vérifiez le code et réessayez.");
+      setError("Code introuvable. Vérifiez le code et réessayez.");
       setIsLoading(false);
       return;
     }
@@ -136,6 +161,11 @@ export default function Inscription() {
       setError(signUpError.message);
       setIsLoading(false);
       return;
+    }
+
+    // Si code d'invitation, marquer comme utilisé
+    if (modeInvitation && invitationData) {
+      await marquerInvitationUtilisee(invitationData.code);
     }
 
     // Success - show confirmation
@@ -356,9 +386,9 @@ export default function Inscription() {
                           value={proprietaireCode}
                           onChange={(e) => setProprietaireCode(e.target.value.toUpperCase())}
                           className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-center font-mono text-xl font-bold focus:outline-none focus:border-[#B8860B] transition-colors uppercase" 
-                          placeholder="Ex: IMMXXXXXX" 
+                          placeholder="Ex: INV-ABC123 ou IMMO-1234"
                         />
-                        <p className="text-[10px] text-slate-400 italic text-center mt-2">Ce code vous a été remis par votre bailleur.</p>
+                        <p className="text-[10px] text-slate-400 italic text-center mt-2">Code d'invitation (INV-...) ou code propriétaire (IMMO-...) remis par votre bailleur.</p>
                       </div>
                       <button 
                         type="button"

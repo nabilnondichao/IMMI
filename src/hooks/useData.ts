@@ -296,13 +296,15 @@ export function useDashboardStats() {
     async () => {
       if (!supabase || !user) return null;
 
-      // Fetch all required data in parallel
-      const [maisonsRes, unitesRes, paiementsRes, locatairesRes] = await Promise.all([
-        supabase.from('maisons').select('id').eq('proprietaire_id', user.id),
-        supabase.from('unites').select('id, statut, maison_id, loyer_mensuel').in('maison_id', 
-          (await supabase.from('maisons').select('id').eq('proprietaire_id', user.id)).data?.map(m => m.id) || []
-        ),
-        supabase.from('paiements').select('*').eq('proprietaire_id', user.id),
+      // Fetch maisons first, then all others in parallel
+      const maisonsRes = await supabase.from('maisons').select('id').eq('proprietaire_id', user.id);
+      const maisonIds = maisonsRes.data?.map(m => m.id) || [];
+
+      const [unitesRes, paiementsRes, locatairesRes] = await Promise.all([
+        maisonIds.length > 0
+          ? supabase.from('unites').select('id, statut, maison_id, loyer_mensuel').in('maison_id', maisonIds)
+          : Promise.resolve({ data: [] }),
+        supabase.from('paiements').select('montant, mois, annee, statut').eq('proprietaire_id', user.id),
         supabase.from('locataires').select('id').eq('proprietaire_id', user.id),
       ]);
 
@@ -609,6 +611,77 @@ export function useAvances(locataireId?: string) {
     { fallbackData: [] }
   );
   return { avances: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+// ============================================
+// INVITATIONS
+// ============================================
+
+export interface Invitation {
+  id: string;
+  proprietaire_id: string;
+  unite_id: string | null;
+  locataire_nom: string | null;
+  locataire_prenom: string | null;
+  locataire_telephone: string | null;
+  code: string;
+  statut: 'en_attente' | 'utilisé' | 'expiré';
+  expires_at: string;
+  created_at: string;
+}
+
+export function useInvitations() {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<Invitation[]>(
+    user ? `invitations-${user.id}` : null,
+    async () => {
+      if (!supabase) return [];
+      const { data, error } = await supabase
+        .from('invitations')
+        .select('*')
+        .eq('proprietaire_id', user!.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    { fallbackData: [] }
+  );
+  return { invitations: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function createInvitation(data: Omit<Invitation, 'id' | 'created_at' | 'code' | 'statut' | 'expires_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const code = 'INV-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  const expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: result, error } = await supabase
+    .from('invitations')
+    .insert({ ...data, code, statut: 'en_attente', expires_at })
+    .select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function marquerInvitationUtilisee(code: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data, error } = await supabase
+    .from('invitations')
+    .update({ statut: 'utilisé' })
+    .eq('code', code)
+    .select().single();
+  if (error) throw error;
+  return data;
+}
+
+export async function getInvitationByCode(code: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data, error } = await supabase
+    .from('invitations')
+    .select('*, unites(nom, loyer_mensuel, maison_id, maisons(nom)), profiles(nom, prenom)')
+    .eq('code', code.toUpperCase())
+    .eq('statut', 'en_attente')
+    .single();
+  if (error) return null;
+  return data;
 }
 
 export async function createAvance(data: Omit<Avance, 'id' | 'created_at' | 'updated_at'>) {
