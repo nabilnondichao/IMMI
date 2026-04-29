@@ -60,16 +60,15 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from '@/components/ui/label';
 import { 
-  LOCATAIRES, 
-  MAISONS, 
-  UNITES, 
-  PAIEMENTS, 
-  getTotalArrieres 
-} from '@/lib/mock-data';
+  useMaisons, 
+  useAllUnites, 
+  useLocataires, 
+  usePaiements 
+} from '@/hooks/useData';
 import { StatutPaiement, OperateurMoMo } from '@/types/immoafrik';
 
 // --- UTILS ---
-const calculerArrieres = (locataireId: string) => getTotalArrieres(locataireId);
+const calculerArrieres = (locataireId: string) => 0; // TODO: implement with real data
 
 export default function PaymentsPage() {
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
@@ -77,43 +76,51 @@ export default function PaymentsPage() {
   const [houseFilter, setHouseFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
+  // Fetch real data
+  const { maisons, isLoading: maisonsLoading } = useMaisons();
+  const { unites, isLoading: unitesLoading } = useAllUnites();
+  const { locataires, isLoading: locatairesLoading } = useLocataires();
+  const { paiements, isLoading: paiementsLoading } = usePaiements({ mois: selectedMonth, annee: selectedYear });
+
+  const isLoading = maisonsLoading || unitesLoading || locatairesLoading || paiementsLoading;
+
   // --- DERIVED DATA ---
   const filteredTenants = useMemo(() => {
-    return LOCATAIRES.filter(l => {
-      const unt = UNITES.find(u => u.id === l.unite_id);
-      const msn = MAISONS.find(m => m.id === unt?.maison_id);
+    return locataires.filter(l => {
+      const unt = unites.find(u => u.id === l.unite_id);
+      const msn = maisons.find(m => m.id === unt?.maison_id);
       
       const matchesHouse = houseFilter === 'all' || msn?.id === houseFilter;
       // Status filtering logic would go here based on monthly status calculation
       return matchesHouse;
     });
-  }, [houseFilter]);
+  }, [locataires, unites, maisons, houseFilter]);
 
   const monthlyStats = useMemo(() => {
-    const monthsTenants = LOCATAIRES.filter(l => {
-      const unt = UNITES.find(u => u.id === l.unite_id);
-      const msn = MAISONS.find(m => m.id === unt?.maison_id);
+    const monthsTenants = locataires.filter(l => {
+      const unt = unites.find(u => u.id === l.unite_id);
+      const msn = maisons.find(m => m.id === unt?.maison_id);
       return houseFilter === 'all' || msn?.id === houseFilter;
     });
 
     const expected = monthsTenants.reduce((sum, l) => {
-      const unt = UNITES.find(u => u.id === l.unite_id);
+      const unt = unites.find(u => u.id === l.unite_id);
       return sum + (unt?.loyer_mensuel || 0);
     }, 0);
 
-    const received = PAIEMENTS
-      .filter(p => p.mois === selectedMonth && p.annee === selectedYear && p.statut === StatutPaiement.PAYE)
+    const received = paiements
+      .filter(p => p.statut === StatutPaiement.PAYE)
       .reduce((sum, p) => sum + p.montant, 0);
 
-    const pendingConfirm = PAIEMENTS
-      .filter(p => p.mois === selectedMonth && p.annee === selectedYear && p.statut === StatutPaiement.EN_ATTENTE)
+    const pendingConfirm = paiements
+      .filter(p => p.statut === StatutPaiement.EN_ATTENTE)
       .reduce((sum, p) => sum + p.montant, 0);
 
     const arrears = expected - received;
     const recoveryRate = expected > 0 ? Math.round((received / expected) * 100) : 0;
 
     return { expected, received, arrears, recoveryRate, pendingConfirm };
-  }, [selectedMonth, selectedYear, houseFilter]);
+  }, [selectedMonth, selectedYear, houseFilter, locataires, unites, maisons, paiements]);
 
   const getMonthName = (m: number) => {
     return new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(new Date(2024, m - 1));
@@ -123,7 +130,7 @@ export default function PaymentsPage() {
   const years = [2023, 2024, 2025, 2026];
 
   const getStatusBadge = (tenantId: string, monthlyRent: number) => {
-    const payment = PAIEMENTS.find(p => p.locataire_id === tenantId && p.mois === selectedMonth && p.annee === selectedYear);
+    const payment = paiements.find(p => p.locataire_id === tenantId);
     
     if (!payment) return <Badge className="bg-red-100 text-red-600 font-black text-[9px] rounded-full uppercase">Impayé</Badge>;
     if (payment.statut === StatutPaiement.EN_ATTENTE) return <Badge className="bg-purple-100 text-purple-600 font-black text-[9px] rounded-full uppercase">En Attente MoMo</Badge>;
@@ -135,6 +142,14 @@ export default function PaymentsPage() {
 
   return (
     <div className="p-8 pb-32 lg:pb-8">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A1A2E] mx-auto mb-4"></div>
+            <p className="text-slate-500">Chargement des données...</p>
+          </div>
+        </div>
+      ) : (
       {/* SECTION 1: BILAN DU MOIS */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
@@ -215,7 +230,7 @@ export default function PaymentsPage() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">Toutes les maisons</SelectItem>
-                  {MAISONS.map(m => (
+                  {maisons.map(m => (
                     <SelectItem key={m.id} value={m.id}>{m.nom}</SelectItem>
                   ))}
                 </SelectContent>
@@ -243,7 +258,7 @@ export default function PaymentsPage() {
                        <SelectValue placeholder="Sélectionner locataire" />
                      </SelectTrigger>
                      <SelectContent>
-                       {LOCATAIRES.map(l => (
+                       {locataires.map(l => (
                          <SelectItem key={l.id} value={l.id}>{l.prenom} {l.nom}</SelectItem>
                        ))}
                      </SelectContent>
@@ -298,8 +313,8 @@ export default function PaymentsPage() {
             </TableHeader>
             <TableBody>
               {filteredTenants.map(loc => {
-                const unt = UNITES.find(u => u.id === loc.unite_id);
-                const payment = PAIEMENTS.find(p => p.locataire_id === loc.id && p.mois === selectedMonth && p.annee === selectedYear);
+                const unt = unites.find(u => u.id === loc.unite_id);
+                const payment = paiements.find(p => p.locataire_id === loc.id);
                 const paid = payment?.montant || 0;
                 const owed = unt?.loyer_mensuel || 0;
                 const remaining = Math.max(0, owed - paid);
@@ -359,7 +374,7 @@ export default function PaymentsPage() {
             <Badge className="bg-red-50 text-red-600 border-none font-black text-[10px]">CRITIQUE</Badge>
           </div>
           <div className="p-4 space-y-4 flex-1">
-            {LOCATAIRES.filter(l => calculerArrieres(l.id) > 0).map(loc => (
+            {locataires.filter(l => calculerArrieres(l.id) > 0).map(loc => (
               <div key={loc.id} className="p-4 bg-slate-50 rounded-3xl border border-slate-100 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-10 h-10 bg-red-100 rounded-2xl flex items-center justify-center text-red-600">
@@ -423,5 +438,6 @@ export default function PaymentsPage() {
         </div>
       </div>
     </div>
+    )}
   );
 }

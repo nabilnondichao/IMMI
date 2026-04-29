@@ -61,12 +61,11 @@ import {
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { 
-  LOCATAIRES, 
-  MAISONS, 
-  UNITES, 
-  CONTRATS,
-  PROPRIETAIRES
-} from '@/lib/mock-data';
+  useMaisons, 
+  useAllUnites, 
+  useLocataires, 
+  useContrats 
+} from '@/hooks/useData';
 import { StatutContrat, StatutUnite } from '@/types/immoafrik';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ContratPDF } from '@/components/contrats/ContratPDF';
@@ -87,20 +86,29 @@ export default function ContratsPage() {
     conditions: ''
   });
 
-  const proprio = PROPRIETAIRES[0];
+  // Fetch real data
+  const { maisons, isLoading: maisonsLoading } = useMaisons();
+  const { unites, isLoading: unitesLoading } = useAllUnites();
+  const { locataires, isLoading: locatairesLoading } = useLocataires();
+  const { contrats, isLoading: contratsLoading } = useContrats();
+
+  const isLoading = maisonsLoading || unitesLoading || locatairesLoading || contratsLoading;
+
+  // Get current user as proprietaire (assuming authenticated user)
+  const proprio = { nom: 'Propriétaire', prenom: '', email: '' }; // TODO: get from auth context
 
   // --- DERIVED DATA ---
   const filteredContracts = useMemo(() => {
-    return CONTRATS.filter(c => {
-      const loc = LOCATAIRES.find(l => l.id === c.locataire_id);
+    return contrats.filter(c => {
+      const loc = locataires.find(l => l.id === c.locataire_id);
       const matchesSearch = loc?.nom.toLowerCase().includes(searchTerm.toLowerCase()) || 
                           loc?.prenom.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = statusFilter === 'all' || c.statut === statusFilter;
       return matchesSearch && matchesStatus;
     });
-  }, [searchTerm, statusFilter]);
+  }, [searchTerm, statusFilter, contrats, locataires]);
 
-  const expiringSoonCount = CONTRATS.filter(c => {
+  const expiringSoonCount = contrats.filter(c => {
     const daysToExpiry = Math.floor((new Date(c.date_fin).getTime() - new Date().getTime()) / (1000 * 3600 * 24));
     return c.statut === StatutContrat.ACTIF && daysToExpiry <= 30 && daysToExpiry > 0;
   }).length;
@@ -116,9 +124,9 @@ export default function ContratsPage() {
   };
 
   const getPDFData = (c: any) => {
-    const loc = LOCATAIRES.find(l => l.id === c.locataire_id);
-    const unt = UNITES.find(u => u.id === c.unite_id);
-    const msn = MAISONS.find(m => m.id === unt?.maison_id);
+    const loc = locataires.find(l => l.id === c.locataire_id);
+    const unt = unites.find(u => u.id === c.unite_id);
+    const msn = maisons.find(m => m.id === unt?.maison_id);
     
     return {
       contratId: c.id,
@@ -140,6 +148,14 @@ export default function ContratsPage() {
 
   return (
     <div className="p-8 pb-32 lg:pb-8">
+      {isLoading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A1A2E] mx-auto mb-4"></div>
+            <p className="text-slate-500">Chargement des contrats...</p>
+          </div>
+        </div>
+      ) : (
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
@@ -177,7 +193,7 @@ export default function ContratsPage() {
                          <SelectValue placeholder="Sélectionner..." />
                        </SelectTrigger>
                        <SelectContent>
-                         {LOCATAIRES.map(l => (
+                         {locataires.map(l => (
                            <SelectItem key={l.id} value={l.id}>{l.prenom} {l.nom}</SelectItem>
                          ))}
                        </SelectContent>
@@ -190,8 +206,8 @@ export default function ContratsPage() {
                          <SelectValue placeholder="Choisir unité libre..." />
                        </SelectTrigger>
                        <SelectContent>
-                         {UNITES.filter(u => u.statut === StatutUnite.LIBRE).map(u => (
-                           <SelectItem key={u.id} value={u.id}>{u.nom} ({MAISONS.find(m => m.id === u.maison_id)?.nom})</SelectItem>
+                         {unites.filter(u => u.statut === StatutUnite.LIBRE).map(u => (
+                           <SelectItem key={u.id} value={u.id}>{u.nom} ({maisons.find(m => m.id === u.maison_id)?.nom})</SelectItem>
                          ))}
                        </SelectContent>
                      </Select>
@@ -282,9 +298,9 @@ export default function ContratsPage() {
             </TableHeader>
             <TableBody>
               {filteredContracts.map(c => {
-                const loc = LOCATAIRES.find(l => l.id === c.locataire_id);
-                const unt = UNITES.find(u => u.id === c.unite_id);
-                const msn = MAISONS.find(m => m.id === unt?.maison_id);
+                const loc = locataires.find(l => l.id === c.locataire_id);
+                const unt = unites.find(u => u.id === c.unite_id);
+                const msn = maisons.find(m => m.id === unt?.maison_id);
                 
                 return (
                   <TableRow key={c.id} className="hover:bg-slate-50/50 transition-colors">
@@ -423,5 +439,6 @@ export default function ContratsPage() {
         </div>
       </div>
     </div>
+    )}
   );
 }
