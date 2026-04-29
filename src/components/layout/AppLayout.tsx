@@ -19,7 +19,8 @@ import {
   Wallet,
   BellRing,
   Users,
-  TrendingUp
+  TrendingUp,
+  Crown
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -75,6 +76,7 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <BarChart3 size={20} />, label: 'Impôts', path: '/dashboard/impots' },
     { icon: <Wallet size={20} />, label: 'MoMo', path: '/dashboard/momo' },
     { icon: <BellRing size={20} />, label: 'Alertes', path: '/dashboard/alertes' },
+    { icon: <Crown size={20} />, label: 'Abonnement', path: '/dashboard/abonnement' },
   ];
 
   const sidebarItems = userType === 'proprietaire' ? ownerItems : [];

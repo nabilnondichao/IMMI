@@ -22,6 +22,8 @@ import LocataireDashboard from './pages/locataire/LocataireDashboard';
 import DepensesPage from './pages/dashboard/depenses/DepensesPage';
 import LocatairesPage from './pages/dashboard/locataires/LocatairesPage';
 import AnalyticsPage from './pages/dashboard/analytics/AnalyticsPage';
+import AbonnementPage from './pages/dashboard/abonnement/AbonnementPage';
+import TarifsPage from './pages/tarifs/TarifsPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import UnitesPublique from './pages/UnitesPublique';
@@ -33,6 +35,7 @@ export default function App() {
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/unites" element={<UnitesPublique />} />
+        <Route path="/tarifs" element={<TarifsPage />} />
         <Route path="/auth/inscription" element={<Inscription />} />
         <Route path="/auth/connexion" element={<Connexion />} />
         
@@ -105,6 +108,11 @@ export default function App() {
         <Route path="/dashboard/momo" element={
           <ProtectedRoute requiredRole="proprietaire">
             <AppLayout userType="proprietaire"><MoMoParams /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/abonnement" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><AbonnementPage /></AppLayout>
           </ProtectedRoute>
         } />
         

@@ -9,6 +9,7 @@ import {
   Printer,
   MoreVertical,
   Loader2,
+  Download,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,8 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { useMaisons, useAllUnites, useLocataires, usePaiements, useAvances, createPaiement } from '@/hooks/useData';
 import { useAuth } from '@/contexts/AuthContext';
+import { PDFDownloadLink } from '@react-pdf/renderer';
+import { RecuPaiement } from '@/components/pdf/RecuPaiement';
 
 const MOIS_NOMS = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Jun', 'Jul', 'Aoû', 'Sep', 'Oct', 'Nov', 'Déc'];
 
@@ -29,7 +32,7 @@ function getMonthName(m: number) {
 }
 
 export default function PaymentsPage() {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [houseFilter, setHouseFilter] = useState('all');
@@ -43,6 +46,7 @@ export default function PaymentsPage() {
   });
   const [cashSubmitting, setCashSubmitting] = useState(false);
   const [cashError, setCashError] = useState<string | null>(null);
+  const [dernierPaiement, setDernierPaiement] = useState<any>(null);
 
   const { maisons } = useMaisons();
   const { unites } = useAllUnites();
@@ -176,6 +180,15 @@ export default function PaymentsPage() {
       );
 
       setCashDialogOpen(false);
+      setDernierPaiement({
+        reference: result.reference_immo,
+        locataireNom: `${loc.prenom} ${loc.nom}`,
+        unite: unt.nom,
+        maison: msn.nom,
+        montant: parseInt(cashForm.montant),
+        mois: parseInt(cashForm.mois),
+        annee: parseInt(cashForm.annee),
+      });
       setCashForm({ locataire_id: '', montant: '', mois: String(new Date().getMonth() + 1), annee: String(new Date().getFullYear()), notes: '' });
       refreshPaiements();
     } catch (err: unknown) {
@@ -193,8 +206,62 @@ export default function PaymentsPage() {
     );
   }
 
+  const MOIS_NOMS_LONG = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
   return (
     <div className="p-8 pb-32 lg:pb-8">
+      {/* MODAL SUCCÈS PAIEMENT + REÇU PDF */}
+      {dernierPaiement && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2rem] p-8 max-w-sm w-full shadow-2xl text-center">
+            <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center mb-4">
+              <CheckCircle2 size={32} className="text-green-500" />
+            </div>
+            <h3 className="text-lg font-black text-[#1A1A2E] mb-1">Paiement enregistré !</h3>
+            <p className="text-xs text-slate-500 mb-6">
+              {dernierPaiement.locataireNom} — {dernierPaiement.unite} — {MOIS_NOMS_LONG[(dernierPaiement.mois || 1) - 1]} {dernierPaiement.annee}
+            </p>
+            <div className="bg-[#1A1A2E] rounded-2xl p-4 mb-6">
+              <p className="text-2xl font-black text-[#B8860B]">{dernierPaiement.montant?.toLocaleString()} FCFA</p>
+              <p className="text-[10px] text-slate-400 mt-1 font-mono">{dernierPaiement.reference}</p>
+            </div>
+            <PDFDownloadLink
+              document={
+                <RecuPaiement data={{
+                  reference: dernierPaiement.reference || '',
+                  proprioNom: profile ? `${profile.prenom} ${profile.nom}` : 'Propriétaire',
+                  proprioContact: profile?.telephone || '',
+                  locataireNom: dernierPaiement.locataireNom,
+                  unite: dernierPaiement.unite,
+                  maison: dernierPaiement.maison,
+                  montant: dernierPaiement.montant,
+                  periode: `${MOIS_NOMS_LONG[(dernierPaiement.mois || 1) - 1]} ${dernierPaiement.annee}`,
+                  date: new Date().toLocaleDateString('fr-FR'),
+                  mode: 'Espèces (Cash)',
+                }} />
+              }
+              fileName={`Recu_${dernierPaiement.reference}.pdf`}
+            >
+              {({ loading }) => (
+                <button
+                  className="w-full bg-[#B8860B] text-white py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 mb-3 hover:bg-[#9A700A] transition-all"
+                  disabled={loading}
+                >
+                  <Download size={16} />
+                  {loading ? 'Génération...' : 'Télécharger le reçu PDF'}
+                </button>
+              )}
+            </PDFDownloadLink>
+            <button
+              onClick={() => setDernierPaiement(null)}
+              className="w-full py-3 rounded-2xl text-slate-400 font-bold text-sm hover:text-slate-600"
+            >
+              Fermer
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
         <div>
