@@ -4,6 +4,8 @@
  */
 
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, '');
 import LandingPage from './pages/LandingPage';
 import Inscription from './pages/auth/Inscription';
 import Connexion from './pages/auth/Connexion';
@@ -33,7 +35,7 @@ import UnitesPublique from './pages/UnitesPublique';
 
 export default function App() {
   return (
-    <Router>
+    <Router basename={BASE}>
       <Routes>
         {/* Public Routes */}
         <Route path="/" element={<LandingPage />} />
