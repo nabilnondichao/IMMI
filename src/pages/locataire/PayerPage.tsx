@@ -29,7 +29,13 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
-import { LOCATAIRES, MAISONS, UNITES, PAIEMENTS } from '@/lib/mock-data';
+import { useAuth } from '@/contexts/AuthContext';
+import { 
+  useLocataires, 
+  useAllUnites, 
+  useMaisons, 
+  usePaiements 
+} from '@/hooks/useData';
 import { OperateurMoMo } from '@/types/immoafrik';
 
 const STEPS = ['Récapitulatif', 'Opérateur', 'Instructions', 'Confirmation'];
@@ -42,11 +48,36 @@ export default function PayerPage() {
   const [transactionId, setTransactionId] = useState('');
   const [hasPaid, setHasPaid] = useState(false);
 
-  // Mock data for tenant
-  const tenant = LOCATAIRES[0];
-  const unit = UNITES.find(u => u.id === tenant.unite_id);
-  const house = MAISONS.find(m => m.id === unit?.maison_id);
-  const totalDue = unit?.loyer_mensuel || 0; // Simplified for demo
+  const { profile, isLoading: authLoading } = useAuth();
+  const { locataires, isLoading: locatairesLoading } = useLocataires();
+  const { unites, isLoading: unitesLoading } = useAllUnites();
+  const { maisons, isLoading: maisonsLoading } = useMaisons();
+  const { paiements, isLoading: paiementsLoading } = usePaiements();
+
+  const isLoading = authLoading || locatairesLoading || unitesLoading || maisonsLoading || paiementsLoading;
+
+  // Get current tenant data
+  const tenant = locataires.find(l => l.id === profile?.id);
+  const unit = unites.find(u => u.id === tenant?.unite_id);
+  const house = maisons.find(m => m.id === unit?.maison_id);
+  const totalDue = unit?.loyer_mensuel || 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1A1A2E] mx-auto mb-4"></div>
+        <p className="text-slate-500">Chargement de la page de paiement...</p>
+      </div>
+    );
+  }
+
+  if (!tenant) {
+    return (
+      <div className="p-12 text-center">
+        <p className="text-slate-500 font-bold">Profil locataire non trouvé.</p>
+      </div>
+    );
+  }
 
   // Reference Code Generator: IMMO-${maisonCode}-${AAAAMM}-${uniteCode}-${id}
   const dateStr = new Date().toISOString().slice(0, 7).replace('-', '');
