@@ -4,7 +4,7 @@
  */
 
 import useSWR from 'swr';
-import { supabase, Maison, Unite, Locataire, Paiement, Contrat, Depense, MomoConfig, Profile, Reservation, Avance } from '../lib/supabase';
+import { supabase, Maison, Unite, Locataire, Paiement, Contrat, Depense, MomoConfig, Profile, Reservation, Avance, Actif } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 export function generateReferenceImmo(maisonNom: string, annee: number, mois: number, uniteNom: string): string {
@@ -628,6 +628,47 @@ export interface Invitation {
   statut: 'en_attente' | 'utilisé' | 'expiré';
   expires_at: string;
   created_at: string;
+}
+
+// ============================================
+// ACTIFS IMMOBILIERS
+// ============================================
+
+export function useActifs() {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<Actif[]>(
+    user ? `actifs-${user.id}` : null,
+    async () => {
+      if (!supabase) return [];
+      const { data, error } = await supabase
+        .from('actifs').select('*').eq('proprietaire_id', user!.id)
+        .order('valeur_actuelle', { ascending: false });
+      if (error) throw error;
+      return data;
+    },
+    { fallbackData: [] }
+  );
+  return { actifs: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function createActif(data: Omit<Actif, 'id' | 'created_at' | 'updated_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase.from('actifs').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function updateActif(id: string, data: Partial<Actif>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase.from('actifs').update({ ...data, updated_at: new Date().toISOString() }).eq('id', id).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function deleteActif(id: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('actifs').delete().eq('id', id);
+  if (error) throw error;
 }
 
 export function useInvitations() {

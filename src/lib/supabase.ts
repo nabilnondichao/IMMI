@@ -202,6 +202,29 @@ export interface Reservation {
   created_at: string;
 }
 
+export interface Actif {
+  id: string;
+  proprietaire_id: string;
+  nom: string;
+  type: 'maison' | 'appartement' | 'terrain' | 'boutique' | 'immeuble' | 'villa' | 'autre';
+  adresse: string;
+  ville: string;
+  valeur_achat: number;
+  valeur_actuelle: number;
+  date_acquisition: string | null;
+  superficie_m2: number | null;
+  statut_juridique: 'titre_foncier' | 'permis_habiter' | 'acte_vente' | 'en_cours' | 'autre';
+  revenus_mensuel: number;
+  charges_mensuel: number;
+  hypotheque: boolean;
+  montant_hypotheque: number;
+  notes: string | null;
+  documents_urls: string[] | null;
+  lien_maison_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 export interface Avance {
   id: string;
   locataire_id: string;

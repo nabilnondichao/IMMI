@@ -179,15 +179,23 @@ export default function PaymentsPage() {
         unt.nom
       );
 
+      const moisNom = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'][parseInt(cashForm.mois) - 1];
+      const periodeStr = `${moisNom} ${cashForm.annee}`;
+      const montantStr = parseInt(cashForm.montant).toLocaleString();
+
       setCashDialogOpen(false);
       setDernierPaiement({
         reference: result.reference_immo,
         locataireNom: `${loc.prenom} ${loc.nom}`,
+        locataireTel: loc.telephone,
+        locataireEmail: loc.email,
         unite: unt.nom,
         maison: msn.nom,
         montant: parseInt(cashForm.montant),
         mois: parseInt(cashForm.mois),
         annee: parseInt(cashForm.annee),
+        periodeStr,
+        montantStr,
       });
       setCashForm({ locataire_id: '', montant: '', mois: String(new Date().getMonth() + 1), annee: String(new Date().getFullYear()), notes: '' });
       refreshPaiements();
@@ -252,6 +260,50 @@ export default function PaymentsPage() {
                 </button>
               )}
             </PDFDownloadLink>
+            {/* WhatsApp */}
+            {dernierPaiement?.locataireTel && (
+              <button
+                onClick={() => {
+                  const msg = encodeURIComponent(
+                    `Bonjour ${dernierPaiement.locataireNom} !\n\n` +
+                    `✅ *Votre paiement de loyer est confirmé.*\n\n` +
+                    `📋 Référence : ${dernierPaiement.reference}\n` +
+                    `🏠 Logement : ${dernierPaiement.maison} — ${dernierPaiement.unite}\n` +
+                    `📅 Période : ${dernierPaiement.periodeStr}\n` +
+                    `💰 Montant : ${dernierPaiement.montantStr} FCFA\n\n` +
+                    `Merci pour votre paiement. — ImmoAfrik`
+                  );
+                  window.open(`https://wa.me/${dernierPaiement.locataireTel.replace(/[\s+]/g, '')}?text=${msg}`, '_blank');
+                }}
+                className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 mb-2 transition-all"
+              >
+                <MessageSquare size={16} /> Envoyer sur WhatsApp
+              </button>
+            )}
+
+            {/* Email */}
+            {dernierPaiement?.locataireEmail && (
+              <button
+                onClick={() => {
+                  const subject = encodeURIComponent(`Reçu de loyer — ${dernierPaiement.periodeStr}`);
+                  const body = encodeURIComponent(
+                    `Bonjour ${dernierPaiement.locataireNom},\n\n` +
+                    `Votre paiement de loyer est confirmé.\n\n` +
+                    `Référence : ${dernierPaiement.reference}\n` +
+                    `Logement : ${dernierPaiement.maison} — ${dernierPaiement.unite}\n` +
+                    `Période : ${dernierPaiement.periodeStr}\n` +
+                    `Montant : ${dernierPaiement.montantStr} FCFA\n\n` +
+                    `Merci pour votre paiement.\n\n` +
+                    `${profile?.prenom || ''} ${profile?.nom || ''}\nImmoAfrik`
+                  );
+                  window.open(`mailto:${dernierPaiement.locataireEmail}?subject=${subject}&body=${body}`, '_blank');
+                }}
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2 mb-3 transition-all"
+              >
+                <Receipt size={16} /> Envoyer par Email
+              </button>
+            )}
+
             <button
               onClick={() => setDernierPaiement(null)}
               className="w-full py-3 rounded-2xl text-slate-400 font-bold text-sm hover:text-slate-600"

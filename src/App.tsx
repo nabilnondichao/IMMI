@@ -23,6 +23,7 @@ import DepensesPage from './pages/dashboard/depenses/DepensesPage';
 import LocatairesPage from './pages/dashboard/locataires/LocatairesPage';
 import AnalyticsPage from './pages/dashboard/analytics/AnalyticsPage';
 import AbonnementPage from './pages/dashboard/abonnement/AbonnementPage';
+import ActifsPage from './pages/dashboard/actifs/ActifsPage';
 import TarifsPage from './pages/tarifs/TarifsPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -108,6 +109,11 @@ export default function App() {
         <Route path="/dashboard/momo" element={
           <ProtectedRoute requiredRole="proprietaire">
             <AppLayout userType="proprietaire"><MoMoParams /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/actifs" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><ActifsPage /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/dashboard/abonnement" element={

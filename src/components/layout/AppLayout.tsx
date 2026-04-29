@@ -20,7 +20,8 @@ import {
   BellRing,
   Users,
   TrendingUp,
-  Crown
+  Crown,
+  Landmark
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -72,6 +73,7 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <Receipt size={20} />, label: 'Paiements', path: '/dashboard/paiements', alert: pendingPaymentsCount },
     { icon: <FileText size={20} />, label: 'Contrats', path: '/dashboard/contrats', alert: contractAlertsCount, alertColor: 'bg-amber-500' },
     { icon: <CreditCard size={20} />, label: 'Dépenses', path: '/dashboard/depenses' },
+    { icon: <Landmark size={20} />, label: 'Actifs', path: '/dashboard/actifs' },
     { icon: <TrendingUp size={20} />, label: 'Analytiques', path: '/dashboard/analytics' },
     { icon: <BarChart3 size={20} />, label: 'Impôts', path: '/dashboard/impots' },
     { icon: <Wallet size={20} />, label: 'MoMo', path: '/dashboard/momo' },
