@@ -31,8 +31,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   async function fetchProfile(userId: string): Promise<Profile | null> {
     if (!supabase) return null;
-    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
-    return (data as Profile) ?? null;
+    try {
+      const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+      return (data as Profile) ?? null;
+    } catch {
+      return null;
+    }
   }
 
   const refreshProfile = async () => {
@@ -40,32 +44,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   useEffect(() => {
-    if (!supabase) { setIsLoading(false); return; }
+    // Si Supabase n'est pas configuré (env vars manquantes)
+    if (!supabase) {
+      setIsLoading(false);
+      return;
+    }
 
-    // Un seul listener — onAuthStateChange gère tout :
-    // INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED
-    // Ne pas appeler getSession() en plus, ça crée un double lock
+    // Sécurité : si l'auth ne répond pas en 8 secondes, débloquer le site
+    const timeout = setTimeout(() => setIsLoading(false), 8000);
+
+    // 1. Récupérer la session existante immédiatement (source de vérité initiale)
+    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
+      clearTimeout(timeout);
+      setSession(initialSession);
+      setUser(initialSession?.user ?? null);
+      if (initialSession?.user) {
+        const p = await fetchProfile(initialSession.user.id);
+        setProfile(p);
+      }
+      setIsLoading(false);
+    }).catch(() => {
+      clearTimeout(timeout);
+      setIsLoading(false);
+    });
+
+    // 2. Écouter les changements SUIVANTS (connexion, déconnexion, refresh token)
+    // On ignore INITIAL_SESSION car getSession() s'en est déjà occupé
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, newSession) => {
+        if (event === 'INITIAL_SESSION') return; // déjà géré par getSession()
+
         setSession(newSession);
         setUser(newSession?.user ?? null);
 
         if (newSession?.user) {
-          // Utiliser setTimeout pour éviter le deadlock
-          // quand onAuthStateChange s'enchaîne avec une requête DB
-          setTimeout(async () => {
-            const p = await fetchProfile(newSession.user.id);
-            setProfile(p);
-            setIsLoading(false);
-          }, 0);
+          const p = await fetchProfile(newSession.user.id);
+          setProfile(p);
         } else {
           setProfile(null);
-          setIsLoading(false);
         }
+        setIsLoading(false);
       }
     );
 
-    return () => { subscription.unsubscribe(); };
+    return () => {
+      clearTimeout(timeout);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signUp = async (email: string, password: string, metadata: SignUpMetadata) => {
