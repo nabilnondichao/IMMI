@@ -8,34 +8,25 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// Singleton — UNE seule instance dans toute l'app pour éviter les conflits de lock auth
-let _instance: SupabaseClient | null = null;
-
-function createSupabase(): SupabaseClient | null {
-  if (!supabaseUrl || !supabaseAnonKey) return null;
-  if (!_instance) {
-    _instance = createClient(supabaseUrl, supabaseAnonKey, {
+// Singleton strict — créé une seule fois au chargement du module
+// NE PAS ajouter storageKey personnalisé ni storage explicite :
+// ça crée une 2ème clé dans localStorage qui vole le lock de la première
+const _supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        storageKey: 'immoafrik-auth',
-        storage: window?.localStorage,
+        detectSessionInUrl: false, // évite les conflits sur GitHub Pages (hash routing)
       },
-      global: {
-        headers: { 'x-app-name': 'immoafrik' },
-      },
-    });
-  }
-  return _instance;
-}
+    })
+  : null;
 
-export const supabase = createSupabase();
+export const supabase = _supabase;
 
 // Alias pour compatibilité
 export function getSupabase(): SupabaseClient {
-  if (!_instance) throw new Error('Supabase non initialisé');
-  return _instance;
+  if (!_supabase) throw new Error('Supabase non initialisé');
+  return _supabase;
 }
 
 // Database types based on our schema
