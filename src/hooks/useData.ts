@@ -746,6 +746,57 @@ export async function imputerAvance(avanceId: string, montantImpute: number, mon
 }
 
 // ============================================
+// NOTIFICATIONS (réelles depuis Supabase)
+// ============================================
+
+export interface NotifDB {
+  id: string;
+  user_id: string;
+  type: 'info' | 'warning' | 'error' | 'success';
+  titre: string;
+  message: string;
+  lu: boolean;
+  action_path: string | null;
+  lie_a_id: string | null;
+  created_at: string;
+}
+
+export function useNotifications() {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<NotifDB[]>(
+    user ? `notifications-${user.id}` : null,
+    async () => {
+      if (!supabase) return [];
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user!.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      return data || [];
+    },
+    { fallbackData: [], refreshInterval: 30000 }
+  );
+  return { notifications: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function markNotificationRead(id: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  await supabase.from('notifications').update({ lu: true }).eq('id', id);
+}
+
+export async function markAllNotificationsRead(userId: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  await supabase.from('notifications').update({ lu: true }).eq('user_id', userId).eq('lu', false);
+}
+
+export async function deleteNotification(id: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  await supabase.from('notifications').delete().eq('id', id);
+}
+
+// ============================================
 // PROFIL LOCATAIRE (côté locataire connecté)
 // ============================================
 

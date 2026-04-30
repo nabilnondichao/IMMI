@@ -144,7 +144,7 @@ export default function App() {
           </ProtectedRoute>
         } />
         <Route path="/admin" element={
-          <ProtectedRoute requiredRole="proprietaire">
+          <ProtectedRoute requiredRole="proprietaire" requireAdmin>
             <AppLayout userType="proprietaire"><SuperAdminDashboard /></AppLayout>
           </ProtectedRoute>
         } />

@@ -52,6 +52,7 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const { profile, signOut } = useAuth();
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const { pendingPaiements } = usePendingPaiements();
   const { contrats } = useContrats();
 
@@ -86,7 +87,7 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <Shield size={20} />, label: 'Cautions', path: '/dashboard/cautions' },
     { icon: <UserCog size={20} />, label: 'Gestionnaires', path: '/dashboard/gestionnaires' },
     { icon: <BellRing size={20} />, label: 'Alertes', path: '/dashboard/alertes' },
-    { icon: <ShieldCheck size={20} />, label: 'Super Admin', path: '/admin' },
+    ...(profile?.is_super_admin ? [{ icon: <ShieldCheck size={20} />, label: 'Super Admin', path: '/admin' }] : []),
   ];
 
   const sidebarItems = userType === 'proprietaire' ? ownerItems : [];

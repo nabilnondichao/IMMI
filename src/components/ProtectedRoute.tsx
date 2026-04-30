@@ -1,8 +1,3 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
 import React from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -11,9 +6,10 @@ import { useAuth } from '../contexts/AuthContext';
 interface ProtectedRouteProps {
   children: React.ReactNode;
   requiredRole?: 'proprietaire' | 'locataire';
+  requireAdmin?: boolean;
 }
 
-export default function ProtectedRoute({ children, requiredRole }: ProtectedRouteProps) {
+export default function ProtectedRoute({ children, requiredRole, requireAdmin }: ProtectedRouteProps) {
   const { user, profile, isLoading } = useAuth();
   const location = useLocation();
 
@@ -29,13 +25,16 @@ export default function ProtectedRoute({ children, requiredRole }: ProtectedRout
   }
 
   if (!user) {
-    // Redirect to login with return URL
     return <Navigate to="/auth/connexion" state={{ from: location }} replace />;
   }
 
-  // Check role if required
-  if (requiredRole && profile?.role !== requiredRole) {
-    // Redirect based on actual role
+  // Vérification super admin
+  if (requireAdmin && !profile?.is_super_admin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  // Vérification rôle
+  if (requiredRole && !requireAdmin && profile?.role !== requiredRole) {
     if (profile?.role === 'locataire') {
       return <Navigate to="/locataire" replace />;
     } else {

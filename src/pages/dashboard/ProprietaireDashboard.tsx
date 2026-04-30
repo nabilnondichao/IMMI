@@ -30,16 +30,18 @@ import {
 } from 'recharts';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
-import { 
-  useDashboardStats, 
-  useMaisons, 
-  usePendingPaiements, 
-  useContrats, 
+import {
+  useDashboardStats,
+  useMaisons,
+  usePendingPaiements,
+  useContrats,
   useLocataires,
   useAllUnites,
+  usePaiements,
   confirmPaiement,
   rejectPaiement
 } from '../../hooks/useData';
+import { useMemo } from 'react';
 
 export default function ProprietaireDashboard() {
   const navigate = useNavigate();
@@ -50,6 +52,7 @@ export default function ProprietaireDashboard() {
   const { pendingPaiements, refresh: refreshPaiements, isLoading: paiementsLoading } = usePendingPaiements();
   const { contrats } = useContrats();
   const { locataires } = useLocataires();
+  const { paiements: allPaiements } = usePaiements({});
 
   // Redirect if not logged in
   useEffect(() => {
@@ -83,15 +86,21 @@ export default function ProprietaireDashboard() {
     return daysToExpiry <= 30 && daysToExpiry >= 0;
   });
 
-  // Chart data - placeholder for now, would need historical data
-  const chartData = [
-    { name: 'Nov', total: 0, color: '#1A1A2E' },
-    { name: 'Déc', total: 0, color: '#1A1A2E' },
-    { name: 'Jan', total: 0, color: '#1A1A2E' },
-    { name: 'Fév', total: 0, color: '#1A1A2E' },
-    { name: 'Mar', total: 0, color: '#1A1A2E' },
-    { name: 'Avr', total: stats?.totalEncaisseMois || 0, color: '#B8860B' },
-  ];
+  // Données graphique sur les 6 derniers mois depuis la DB
+  const chartData = useMemo(() => {
+    const MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+    const now = new Date();
+    return Array.from({ length: 6 }, (_, i) => {
+      const d = new Date(now.getFullYear(), now.getMonth() - (5 - i), 1);
+      const m = d.getMonth() + 1;
+      const y = d.getFullYear();
+      const total = allPaiements
+        .filter(p => p.statut === 'payé' && p.mois === m && p.annee === y)
+        .reduce((s, p) => s + p.montant, 0);
+      const isCurrent = m === now.getMonth() + 1 && y === now.getFullYear();
+      return { name: MOIS[m - 1], total, color: isCurrent ? '#B8860B' : '#1A1A2E' };
+    });
+  }, [allPaiements]);
 
   const isLoading = authLoading || statsLoading || maisonsLoading;
 

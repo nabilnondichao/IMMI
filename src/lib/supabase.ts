@@ -46,6 +46,7 @@ export interface Profile {
   code_unique: string;
   pays: string;
   role: 'proprietaire' | 'locataire';
+  is_super_admin: boolean;
   abonnement_plan: 'starter' | 'pro' | 'enterprise';
   abonnement_expiration: string | null;
   created_at: string;

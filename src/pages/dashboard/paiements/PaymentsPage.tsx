@@ -167,7 +167,7 @@ export default function PaymentsPage() {
       const msn = maisons.find(m => m.id === unt?.maison_id);
       if (!loc || !unt || !msn || !user) throw new Error('Données manquantes');
 
-      await createPaiement(
+      const result = await createPaiement(
         {
           locataire_id: cashForm.locataire_id,
           unite_id: unt.id,
@@ -195,7 +195,7 @@ export default function PaymentsPage() {
 
       setCashDialogOpen(false);
       setDernierPaiement({
-        reference: result.reference_immo,
+        reference: result?.reference_immo || `IMMO-${Date.now()}`,
         locataireNom: `${loc.prenom} ${loc.nom}`,
         locataireTel: loc.telephone,
         locataireEmail: loc.email,
@@ -207,7 +207,7 @@ export default function PaymentsPage() {
         periodeStr,
         montantStr,
       });
-      setCashForm({ locataire_id: '', montant: '', mois: String(new Date().getMonth() + 1), annee: String(new Date().getFullYear()), notes: '' });
+      setCashForm({ locataire_id: '', montant: '', mois: String(new Date().getMonth() + 1), annee: String(new Date().getFullYear()), notes: '', type_charge: 'loyer' });
       refreshPaiements();
     } catch (err: unknown) {
       setCashError(err instanceof Error ? err.message : 'Erreur lors de l\'enregistrement.');
