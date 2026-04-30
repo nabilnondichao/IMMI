@@ -8,25 +8,14 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// Singleton strict — créé une seule fois au chargement du module
-// NE PAS ajouter storageKey personnalisé ni storage explicite :
-// ça crée une 2ème clé dans localStorage qui vole le lock de la première
-const _supabase = (supabaseUrl && supabaseAnonKey)
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false, // évite les conflits sur GitHub Pages (hash routing)
-      },
-    })
+// Instance unique — créée une seule fois, jamais recréée
+export const supabase = (supabaseUrl && supabaseAnonKey)
+  ? createClient(supabaseUrl, supabaseAnonKey)
   : null;
 
-export const supabase = _supabase;
-
-// Alias pour compatibilité
 export function getSupabase(): SupabaseClient {
-  if (!_supabase) throw new Error('Supabase non initialisé');
-  return _supabase;
+  if (!supabase) throw new Error('Supabase non initialisé');
+  return supabase;
 }
 
 // Database types based on our schema

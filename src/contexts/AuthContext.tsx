@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
+import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session, AuthError } from '@supabase/supabase-js';
 import { supabase, Profile } from '../lib/supabase';
 
@@ -28,82 +28,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  // Eviter les double-appels fetchProfile simultanés
-  const fetchingRef = useRef(false);
 
-  const fetchProfile = async (userId: string): Promise<Profile | null> => {
+  async function fetchProfile(userId: string): Promise<Profile | null> {
     if (!supabase) return null;
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', userId)
-      .single();
-    if (error) return null;
-    return data as Profile;
-  };
+    const { data } = await supabase.from('profiles').select('*').eq('id', userId).single();
+    return (data as Profile) ?? null;
+  }
 
   const refreshProfile = async () => {
-    if (user && !fetchingRef.current) {
-      fetchingRef.current = true;
-      const profileData = await fetchProfile(user.id);
-      setProfile(profileData);
-      fetchingRef.current = false;
-    }
+    if (user) setProfile(await fetchProfile(user.id));
   };
 
   useEffect(() => {
     if (!supabase) { setIsLoading(false); return; }
 
-    let initialized = false;
+    // Un seul listener — onAuthStateChange gère tout :
+    // INITIAL_SESSION, SIGNED_IN, SIGNED_OUT, TOKEN_REFRESHED
+    // Ne pas appeler getSession() en plus, ça crée un double lock
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, newSession) => {
+        setSession(newSession);
+        setUser(newSession?.user ?? null);
 
-    // Récupérer la session initiale une seule fois
-    supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
-      initialized = true;
-      setSession(initialSession);
-      setUser(initialSession?.user ?? null);
-      if (initialSession?.user) {
-        const profileData = await fetchProfile(initialSession.user.id);
-        setProfile(profileData);
-      }
-      setIsLoading(false);
-    });
-
-    // Listener sur les changements d'état auth
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      // Ignorer le INITIAL_SESSION — déjà géré par getSession() ci-dessus
-      if (event === 'INITIAL_SESSION' && initialized) return;
-
-      setSession(newSession);
-      setUser(newSession?.user ?? null);
-
-      if (newSession?.user) {
-        if (!fetchingRef.current) {
-          fetchingRef.current = true;
-          const profileData = await fetchProfile(newSession.user.id);
-          setProfile(profileData);
-          fetchingRef.current = false;
+        if (newSession?.user) {
+          // Utiliser setTimeout pour éviter le deadlock
+          // quand onAuthStateChange s'enchaîne avec une requête DB
+          setTimeout(async () => {
+            const p = await fetchProfile(newSession.user.id);
+            setProfile(p);
+            setIsLoading(false);
+          }, 0);
+        } else {
+          setProfile(null);
+          setIsLoading(false);
         }
-      } else {
-        setProfile(null);
       }
-
-      setIsLoading(false);
-    });
+    );
 
     return () => { subscription.unsubscribe(); };
   }, []);
 
   const signUp = async (email: string, password: string, metadata: SignUpMetadata) => {
-    if (!supabase) return { error: { message: 'Supabase not configured' } as AuthError };
+    if (!supabase) return { error: { message: 'Supabase non configuré' } as AuthError };
     const { error } = await supabase.auth.signUp({
       email, password,
-      options: { data: metadata, emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { data: metadata },
     });
     return { error };
   };
 
   const signIn = async (email: string, password: string) => {
-    if (!supabase) return { error: { message: 'Supabase not configured' } as AuthError };
+    if (!supabase) return { error: { message: 'Supabase non configuré' } as AuthError };
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     return { error };
   };
@@ -123,6 +98,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
 export function useAuth() {
   const context = useContext(AuthContext);
-  if (!context) throw new Error('useAuth must be used within an AuthProvider');
+  if (!context) throw new Error('useAuth doit être utilisé dans AuthProvider');
   return context;
 }

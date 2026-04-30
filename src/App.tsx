@@ -34,7 +34,6 @@ import UnitesPublique from './pages/UnitesPublique';
 import CautionsPage from './pages/dashboard/cautions/CautionsPage';
 import GestionnairesPage from './pages/dashboard/gestionnaires/GestionnairesPage';
 import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
-import AdminPortal from './pages/admin/AdminPortal';
 // AbonnementPage retiré — modèle commission 3.5%
 
 export default function App() {
@@ -162,9 +161,6 @@ export default function App() {
           </ProtectedRoute>
         } />
         
-        {/* Portail Admin autonome — URL unique */}
-        <Route path="/IA-ADMIN-2026" element={<AdminPortal />} />
-
         {/* Fallback to landing */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
