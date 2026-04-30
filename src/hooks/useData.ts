@@ -4,7 +4,7 @@
  */
 
 import useSWR from 'swr';
-import { supabase, Maison, Unite, Locataire, Paiement, Contrat, Depense, MomoConfig, Profile, Reservation, Avance, Actif } from '../lib/supabase';
+import { supabase, Maison, Unite, Locataire, Paiement, Contrat, Depense, MomoConfig, Profile, Reservation, Avance, Actif, Caution, HistoriqueLocataire, Gestionnaire } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 
 export function generateReferenceImmo(maisonNom: string, annee: number, mois: number, uniteNom: string): string {
@@ -743,6 +743,131 @@ export async function imputerAvance(avanceId: string, montantImpute: number, mon
     .single();
   if (error) throw error;
   return result;
+}
+
+// ============================================
+// CAUTIONS
+// ============================================
+
+export function useCautions(uniteId?: string) {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<Caution[]>(
+    user ? async () => {
+      if (!supabase) return [];
+      let query = supabase.from('cautions').select('*').eq('proprietaire_id', user.id);
+      if (uniteId) query = query.eq('unite_id', uniteId);
+      const { data, error } = await query.order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } : null,
+    { fallbackData: [] }
+  );
+  return { cautions: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function createCaution(data: Omit<Caution, 'id' | 'created_at' | 'updated_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase.from('cautions').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function updateCaution(id: string, data: Partial<Caution>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase
+    .from('cautions')
+    .update({ ...data, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function deleteCaution(id: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('cautions').delete().eq('id', id);
+  if (error) throw error;
+}
+
+// ============================================
+// HISTORIQUE LOCATAIRES
+// ============================================
+
+export function useHistoriqueLocataires(uniteId?: string) {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<HistoriqueLocataire[]>(
+    user ? async () => {
+      if (!supabase) return [];
+      let query = supabase.from('historique_locataires').select('*').eq('proprietaire_id', user.id);
+      if (uniteId) query = query.eq('unite_id', uniteId);
+      const { data, error } = await query.order('date_entree', { ascending: false });
+      if (error) throw error;
+      return data;
+    } : null,
+    { fallbackData: [] }
+  );
+  return { historique: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function createHistorique(data: Omit<HistoriqueLocataire, 'id' | 'created_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase.from('historique_locataires').insert(data).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function updateHistorique(id: string, data: Partial<HistoriqueLocataire>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase
+    .from('historique_locataires').update(data).eq('id', id).select().single();
+  if (error) throw error;
+  return result;
+}
+
+// ============================================
+// GESTIONNAIRES
+// ============================================
+
+export function useGestionnaires() {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<Gestionnaire[]>(
+    user ? async () => {
+      if (!supabase) return [];
+      const { data, error } = await supabase
+        .from('gestionnaires').select('*').eq('proprietaire_id', user.id)
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      return data;
+    } : null,
+    { fallbackData: [] }
+  );
+  return { gestionnaires: data || [], isLoading, isError: error, refresh: mutate };
+}
+
+export async function inviterGestionnaire(data: Omit<Gestionnaire, 'id' | 'created_at' | 'updated_at' | 'code_invitation' | 'user_id' | 'expires_at'>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const code = 'GEST-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+  const expires_at = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+  const { data: result, error } = await supabase
+    .from('gestionnaires')
+    .insert({ ...data, code_invitation: code, expires_at, statut: 'invité' })
+    .select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function updateGestionnaire(id: string, data: Partial<Gestionnaire>) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { data: result, error } = await supabase
+    .from('gestionnaires').update({ ...data, updated_at: new Date().toISOString() })
+    .eq('id', id).select().single();
+  if (error) throw error;
+  return result;
+}
+
+export async function supprimerGestionnaire(id: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  const { error } = await supabase.from('gestionnaires').delete().eq('id', id);
+  if (error) throw error;
 }
 
 // Track virtual tour visit

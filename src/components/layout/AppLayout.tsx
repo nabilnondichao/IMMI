@@ -23,7 +23,10 @@ import {
   Crown,
   Landmark,
   MessageCircle,
-  Percent
+  Percent,
+  Shield,
+  UserCog,
+  ShieldCheck
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -81,8 +84,11 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <Wallet size={20} />, label: 'MoMo', path: '/dashboard/momo' },
     { icon: <MessageCircle size={20} />, label: 'Messages WA', path: '/dashboard/messages' },
     { icon: <Percent size={20} />, label: 'Commission', path: '/dashboard/commission' },
+    { icon: <Shield size={20} />, label: 'Cautions', path: '/dashboard/cautions' },
+    { icon: <UserCog size={20} />, label: 'Gestionnaires', path: '/dashboard/gestionnaires' },
     { icon: <BellRing size={20} />, label: 'Alertes', path: '/dashboard/alertes' },
     { icon: <Crown size={20} />, label: 'Abonnement', path: '/dashboard/abonnement' },
+    { icon: <ShieldCheck size={20} />, label: 'Super Admin', path: '/admin' },
   ];
 
   const sidebarItems = userType === 'proprietaire' ? ownerItems : [];

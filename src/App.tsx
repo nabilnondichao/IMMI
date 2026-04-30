@@ -32,6 +32,9 @@ import TarifsPage from './pages/tarifs/TarifsPage';
 import AppLayout from './components/layout/AppLayout';
 import ProtectedRoute from './components/ProtectedRoute';
 import UnitesPublique from './pages/UnitesPublique';
+import CautionsPage from './pages/dashboard/cautions/CautionsPage';
+import GestionnairesPage from './pages/dashboard/gestionnaires/GestionnairesPage';
+import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
 
 export default function App() {
   return (
@@ -133,6 +136,21 @@ export default function App() {
         <Route path="/dashboard/abonnement" element={
           <ProtectedRoute requiredRole="proprietaire">
             <AppLayout userType="proprietaire"><AbonnementPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/cautions" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><CautionsPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/gestionnaires" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><GestionnairesPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/admin" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><SuperAdminDashboard /></AppLayout>
           </ProtectedRoute>
         } />
         

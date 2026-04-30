@@ -239,3 +239,59 @@ export interface Avance {
   created_at: string;
   updated_at: string;
 }
+
+export interface Caution {
+  id: string;
+  locataire_id: string;
+  unite_id: string;
+  maison_id: string;
+  proprietaire_id: string;
+  montant: number;
+  statut: 'encaissé' | 'retenu_partiel' | 'restitué';
+  date_encaissement: string;
+  date_restitution: string | null;
+  montant_retenu: number;
+  motif_retenue: string | null;
+  notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface HistoriqueLocataire {
+  id: string;
+  unite_id: string;
+  locataire_id: string | null;
+  proprietaire_id: string;
+  nom_locataire: string;
+  prenom_locataire: string;
+  telephone_locataire: string | null;
+  date_entree: string;
+  date_sortie: string | null;
+  loyer_mensuel: number;
+  motif_depart: string | null;
+  notes: string | null;
+  created_at: string;
+}
+
+export interface Gestionnaire {
+  id: string;
+  proprietaire_id: string;
+  email_invite: string;
+  nom: string;
+  prenom: string;
+  telephone: string | null;
+  user_id: string | null;
+  statut: 'invité' | 'actif' | 'suspendu';
+  permissions: {
+    maisons: boolean;
+    locataires: boolean;
+    paiements: boolean;
+    contrats: boolean;
+    depenses: boolean;
+    analytics: boolean;
+  };
+  code_invitation: string | null;
+  expires_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
