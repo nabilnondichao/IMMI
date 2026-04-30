@@ -1,183 +1,81 @@
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ShieldCheck, Copy, Check, ArrowLeft, Building, UserCircle, Loader2, Phone } from 'lucide-react';
+import {
+  ShieldCheck, ArrowLeft, Building, UserCircle,
+  Loader2, Phone, Mail, Lock, Check, Eye, EyeOff
+} from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { getInvitationByCode, marquerInvitationUtilisee } from '../../hooks/useData';
+import { linkLocataireToUser } from '../../hooks/useData';
 
 export default function Inscription() {
   const [activeTab, setActiveTab] = useState<'proprio' | 'locataire'>('proprio');
-  const [step, setStep] = useState(1);
-  const [generatedCode, setGeneratedCode] = useState('');
-  const [isCopied, setIsCopied] = useState(false);
-  const [ownerFound, setOwnerFound] = useState<{ id: string; nom: string; prenom: string } | null>(null);
-  const [invitationData, setInvitationData] = useState<any>(null);
-  const [modeInvitation, setModeInvitation] = useState(false);
+  const [step, setStep] = useState<1 | 2>(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [proprietaireCode, setProprietaireCode] = useState('');
+  const [showPwd, setShowPwd] = useState(false);
   const navigate = useNavigate();
   const { signUp, user, profile, isLoading: authLoading } = useAuth();
 
-  // Form state for proprietaire
-  const [proprioForm, setProprioForm] = useState({
-    prenom: '',
-    nom: '',
-    email: '',
-    telephone: '',
-    pays: '',
-    password: '',
-  });
+  const [proprioForm, setProprioForm] = useState({ prenom: '', nom: '', email: '', telephone: '', pays: 'Bénin', password: '' });
+  const [locForm, setLocForm] = useState({ prenom: '', nom: '', email: '', telephone: '', password: '', codeProprietaire: '' });
+  const [ownerFound, setOwnerFound] = useState<{ id: string; nom: string; prenom: string } | null>(null);
+  const [codeVerified, setCodeVerified] = useState(false);
+  const [codeLoading, setCodeLoading] = useState(false);
 
-  // Form state for locataire
-  const [locataireForm, setLocataireForm] = useState({
-    prenom: '',
-    nom: '',
-    telephone: '',
-    email: '',
-    password: '',
-  });
-
-  // Redirect if already logged in
   useEffect(() => {
     if (!authLoading && user && profile) {
-      if (profile.role === 'locataire') {
-        navigate('/locataire');
-      } else {
-        navigate('/dashboard');
-      }
+      navigate(profile.role === 'locataire' ? '/locataire' : '/dashboard');
     }
   }, [user, profile, authLoading, navigate]);
 
-  const handleProprioSubmit = async (e: React.FormEvent) => {
+  async function verifierCode(code: string) {
+    if (code.length < 4) { setOwnerFound(null); setCodeVerified(false); return; }
+    setCodeLoading(true);
+    try {
+      const { data } = await supabase!
+        .from('profiles')
+        .select('id, nom, prenom')
+        .eq('code_unique', code.toUpperCase().trim())
+        .eq('role', 'proprietaire')
+        .maybeSingle();
+      if (data) { setOwnerFound(data); setCodeVerified(true); }
+      else { setOwnerFound(null); setCodeVerified(false); }
+    } finally { setCodeLoading(false); }
+  }
+
+  async function handleProprioSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setIsLoading(true);
-    setError(null);
+    if (proprioForm.password.length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères.'); return; }
+    setIsLoading(true); setError(null);
+    const { error: err } = await signUp(proprioForm.email, proprioForm.password, {
+      nom: proprioForm.nom, prenom: proprioForm.prenom, telephone: proprioForm.telephone,
+      role: 'proprietaire', pays: proprioForm.pays,
+    });
+    if (err) { setError(err.message); setIsLoading(false); return; }
+    setStep(2); setIsLoading(false);
+  }
 
-    const { error: signUpError } = await signUp(
-      proprioForm.email,
-      proprioForm.password,
-      {
-        nom: proprioForm.nom,
-        prenom: proprioForm.prenom,
-        telephone: proprioForm.telephone,
-        role: 'proprietaire',
-        pays: proprioForm.pays,
-      }
-    );
-
-    if (signUpError) {
-      setError(signUpError.message);
-      setIsLoading(false);
-      return;
-    }
-
-    // Generate a display code (actual code comes from database trigger)
-    const code = `IMM${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
-    setGeneratedCode(code);
-    setStep(2);
-    setIsLoading(false);
-  };
-
-  const handleLocataireSearch = async () => {
-    if (!proprietaireCode.trim()) {
-      setError("Veuillez entrer un code.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    if (!supabase) {
-      setError("Service non disponible.");
-      setIsLoading(false);
-      return;
-    }
-
-    const code = proprietaireCode.toUpperCase().trim();
-
-    // Essayer d'abord comme code d'invitation (INV-XXXXXX)
-    if (code.startsWith('INV-')) {
-      const inv = await getInvitationByCode(code);
-      if (inv) {
-        setInvitationData(inv);
-        setModeInvitation(true);
-        // Pré-remplir le formulaire locataire
-        if (inv.locataire_prenom) setLocataireForm(f => ({ ...f, prenom: inv.locataire_prenom || '' }));
-        if (inv.locataire_nom) setLocataireForm(f => ({ ...f, nom: inv.locataire_nom || '' }));
-        if (inv.locataire_telephone) setLocataireForm(f => ({ ...f, telephone: inv.locataire_telephone || '' }));
-        setOwnerFound({ id: inv.profiles?.id || inv.proprietaire_id, nom: inv.profiles?.nom || '', prenom: inv.profiles?.prenom || '' });
-        setIsLoading(false);
-        return;
-      } else {
-        setError("Code d'invitation invalide ou expiré.");
-        setIsLoading(false);
-        return;
-      }
-    }
-
-    // Sinon chercher comme code propriétaire (IMMO-XXXX)
-    const { data, error: searchError } = await supabase
-      .from('profiles')
-      .select('id, nom, prenom')
-      .eq('code_unique', code)
-      .eq('role', 'proprietaire')
-      .single();
-
-    if (searchError || !data) {
-      setError("Code introuvable. Vérifiez le code et réessayez.");
-      setIsLoading(false);
-      return;
-    }
-
-    setOwnerFound(data);
-    setIsLoading(false);
-  };
-
-  const handleLocataireSubmit = async (e: React.FormEvent) => {
+  async function handleLocataireSubmit(e: React.FormEvent) {
     e.preventDefault();
-    
-    if (!ownerFound) {
-      setError("Veuillez d'abord trouver votre propriétaire.");
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    const { error: signUpError } = await signUp(
-      locataireForm.email,
-      locataireForm.password,
-      {
-        nom: locataireForm.nom,
-        prenom: locataireForm.prenom,
-        telephone: locataireForm.telephone,
-        role: 'locataire',
+    if (!ownerFound) { setError('Code propriétaire invalide. Vérifiez le code.'); return; }
+    if (locForm.password.length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères.'); return; }
+    setIsLoading(true); setError(null);
+    try {
+      const { error: err } = await signUp(locForm.email, locForm.password, {
+        nom: locForm.nom, prenom: locForm.prenom, telephone: locForm.telephone, role: 'locataire',
+      });
+      if (err) throw err;
+      await new Promise(r => setTimeout(r, 1200));
+      const { data: { user: newUser } } = await supabase!.auth.getUser();
+      if (newUser) {
+        await linkLocataireToUser(newUser.id, ownerFound.id, locForm.nom, locForm.prenom, locForm.telephone);
       }
-    );
-
-    if (signUpError) {
-      setError(signUpError.message);
-      setIsLoading(false);
-      return;
-    }
-
-    // Si code d'invitation, marquer comme utilisé
-    if (modeInvitation && invitationData) {
-      await marquerInvitationUtilisee(invitationData.code);
-    }
-
-    // Success - show confirmation
-    setStep(2);
-    setIsLoading(false);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(generatedCode);
-    setIsCopied(true);
-    setTimeout(() => setIsCopied(false), 2000);
-  };
+      setStep(2);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de l\'inscription.');
+    } finally { setIsLoading(false); }
+  }
 
   if (authLoading) {
     return (
@@ -187,344 +85,210 @@ export default function Inscription() {
     );
   }
 
+  const inputClass = "w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3.5 text-sm focus:outline-none focus:border-[#B8860B] transition-colors";
+
   return (
-    <div className="min-h-screen bg-[#1A1A2E] flex flex-col items-center justify-center p-6 relative overflow-hidden">
-      {/* Background accents */}
+    <div className="min-h-screen bg-[#1A1A2E] flex flex-col items-center justify-center p-4 relative overflow-hidden">
       <div className="absolute top-0 right-0 w-96 h-96 bg-[#B8860B]/10 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2" />
       <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/5 blur-[100px] rounded-full -translate-x-1/2 translate-y-1/2" />
-
       <Link to="/" className="absolute top-8 left-8 text-white/50 hover:text-[#B8860B] transition-colors flex items-center gap-2 font-bold text-sm">
-        <ArrowLeft size={16} />
-        Retour à l&apos;accueil
+        <ArrowLeft size={16} /> Retour
       </Link>
-
       <div className="w-full max-w-md relative z-10">
-        <div className="text-center mb-10">
-          <div className="w-16 h-16 bg-[#B8860B] rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-[#B8860B]/20 mb-6">
-            <ShieldCheck size={32} className="text-white" />
+        <div className="text-center mb-8">
+          <div className="w-14 h-14 bg-[#B8860B] rounded-2xl mx-auto flex items-center justify-center shadow-xl shadow-[#B8860B]/20 mb-5">
+            <ShieldCheck size={28} className="text-white" />
           </div>
-          <h1 className="text-3xl font-black text-white tracking-tight">Rejoignez <span className="text-[#B8860B]">ImmoAfrik</span></h1>
-          <p className="text-slate-400 mt-2">La plateforme de confiance pour l&apos;immobilier en Afrique.</p>
+          <h1 className="text-3xl font-black text-white">Créer un compte</h1>
+          <p className="text-slate-400 mt-1 text-sm">ImmoAfrik — Gestion immobilière en Afrique</p>
         </div>
 
-        {/* Tabs */}
-        <div className="bg-white/5 p-1 rounded-2xl mb-8 flex border border-white/10">
-          <button 
-            onClick={() => { setActiveTab('proprio'); setStep(1); setError(null); }}
-            className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${activeTab === 'proprio' ? 'bg-[#B8860B] text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-          >
-            <Building size={18} />
-            Propriétaire
-          </button>
-          <button 
-            onClick={() => { setActiveTab('locataire'); setStep(1); setOwnerFound(null); setError(null); }}
-            className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${activeTab === 'locataire' ? 'bg-[#B8860B] text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}
-          >
-            <UserCircle size={18} />
-            Locataire
-          </button>
-        </div>
+        {step === 1 && (
+          <div className="bg-white/5 p-1 rounded-2xl mb-6 flex border border-white/10">
+            <button onClick={() => { setActiveTab('proprio'); setError(null); }}
+              className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${activeTab === 'proprio' ? 'bg-[#B8860B] text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+              <Building size={16} /> Propriétaire
+            </button>
+            <button onClick={() => { setActiveTab('locataire'); setError(null); setOwnerFound(null); setCodeVerified(false); }}
+              className={`flex-1 py-3 rounded-xl flex items-center justify-center gap-2 font-bold text-sm transition-all ${activeTab === 'locataire' ? 'bg-[#B8860B] text-white shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+              <UserCircle size={16} /> Locataire
+            </button>
+          </div>
+        )}
 
-        <div className="bg-white rounded-[2rem] p-8 shadow-2xl">
+        <div className="bg-white rounded-[2rem] p-7 shadow-2xl">
           {error && (
-            <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-medium text-center">
-              {error}
+            <div className="mb-5 p-3 bg-red-50 border border-red-100 rounded-2xl text-red-600 text-sm font-medium text-center">{error}</div>
+          )}
+
+          {/* SUCCÈS */}
+          {step === 2 && (
+            <div className="text-center py-4 space-y-5">
+              <div className="w-16 h-16 bg-green-100 rounded-full mx-auto flex items-center justify-center">
+                <Check size={32} className="text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-xl font-black text-slate-800">Compte créé !</h3>
+                <p className="text-sm text-slate-500 mt-2 px-4">
+                  {activeTab === 'proprio'
+                    ? 'Vérifiez votre email pour confirmer. Votre code propriétaire sera disponible après connexion.'
+                    : 'Inscription réussie ! Vérifiez votre email et connectez-vous. Votre propriétaire vous assignera bientôt votre logement.'}
+                </p>
+              </div>
+              <button onClick={() => navigate('/auth/connexion')}
+                className="w-full bg-[#1A1A2E] text-white py-4 rounded-xl font-bold hover:bg-[#252542] transition-all">
+                Se connecter
+              </button>
             </div>
           )}
 
-          <AnimatePresence mode="wait">
-            {activeTab === 'proprio' ? (
-              <motion.div 
-                key={`proprio-step-${step}`}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-              >
-                {step === 1 ? (
-                  <form onSubmit={handleProprioSubmit} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prénom</label>
-                        <input 
-                          required 
-                          type="text" 
-                          value={proprioForm.prenom}
-                          onChange={(e) => setProprioForm({ ...proprioForm, prenom: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#B8860B] transition-colors" 
-                          placeholder="Koffi" 
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom</label>
-                        <input 
-                          required 
-                          type="text" 
-                          value={proprioForm.nom}
-                          onChange={(e) => setProprioForm({ ...proprioForm, nom: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#B8860B] transition-colors" 
-                          placeholder="Adanhoume" 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email</label>
-                      <input 
-                        required 
-                        type="email" 
-                        value={proprioForm.email}
-                        onChange={(e) => setProprioForm({ ...proprioForm, email: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#B8860B] transition-colors" 
-                        placeholder="koffi@exemple.com" 
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Téléphone</label>
-                      <div className="relative">
-                        <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                        <input 
-                          required 
-                          type="tel" 
-                          value={proprioForm.telephone}
-                          onChange={(e) => setProprioForm({ ...proprioForm, telephone: e.target.value })}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl pl-12 pr-4 py-3 text-sm focus:outline-none focus:border-[#B8860B] transition-colors" 
-                          placeholder="+229 97 00 00 00" 
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pays</label>
-                      <select 
-                        required 
-                        value={proprioForm.pays}
-                        onChange={(e) => setProprioForm({ ...proprioForm, pays: e.target.value })}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#B8860B] transition-colors"
-                      >
-                        <option value="">Sélectionnez un pays</option>
-                        <option value="Bénin">Bénin</option>
-                        <option value="Côte d'Ivoire">Côte d&apos;Ivoire</option>
-                        <option value="Sénégal">Sénégal</option>
-                        <option value="Togo">Togo</option>
-                      </select>
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mot de passe</label>
-                      <input 
-                        required 
-                        type="password" 
-                        value={proprioForm.password}
-                        onChange={(e) => setProprioForm({ ...proprioForm, password: e.target.value })}
-                        minLength={6}
-                        className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-[#B8860B] transition-colors" 
-                        placeholder="Minimum 6 caractères"
-                      />
-                    </div>
-                    <button 
-                      type="submit" 
-                      disabled={isLoading}
-                      className="w-full bg-[#1A1A2E] text-white py-4 rounded-xl font-bold mt-4 hover:shadow-xl hover:bg-[#252542] transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-                    >
-                      {isLoading ? (
-                        <>
-                          <Loader2 className="animate-spin" size={20} />
-                          Création en cours...
-                        </>
-                      ) : (
-                        "Créer mon compte immo"
-                      )}
-                    </button>
-                  </form>
-                ) : (
-                  <div className="text-center space-y-6 py-4">
-                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full mx-auto flex items-center justify-center">
-                      <Check size={40} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800">Compte créé avec succès !</h3>
-                      <p className="text-sm text-slate-500 mt-2 italic px-4">
-                        Vérifiez votre email pour confirmer votre inscription. Votre code propriétaire unique sera disponible après confirmation.
-                      </p>
-                    </div>
-                    <div className="relative group">
-                      <div className="bg-[#1A1A2E] text-white p-6 rounded-2xl font-mono text-2xl font-black tracking-widest relative overflow-hidden">
-                        {generatedCode}
-                        <div className="absolute top-0 right-0 p-2 opacity-50 text-[10px] font-bold">PROPRIO CODE</div>
-                      </div>
-                      <button 
-                        onClick={copyToClipboard}
-                        className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-[#B8860B] text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg hover:scale-105 transition-all flex items-center gap-2"
-                      >
-                        {isCopied ? <><Check size={14} /> Copié !</> : <><Copy size={14} /> Copier le code</>}
-                      </button>
-                    </div>
-                    <div className="pt-8">
-                      <button 
-                        onClick={() => navigate('/auth/connexion')}
-                        className="text-sm font-bold text-[#1A1A2E] underline underline-offset-4 hover:text-[#B8860B]"
-                      >
-                        Se connecter maintenant
-                      </button>
-                    </div>
+          {/* FORMULAIRE PROPRIO */}
+          {step === 1 && activeTab === 'proprio' && (
+            <form onSubmit={handleProprioSubmit} className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prénom *</label>
+                  <input required type="text" placeholder="Koffi" className={inputClass}
+                    value={proprioForm.prenom} onChange={e => setProprioForm(f => ({ ...f, prenom: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom *</label>
+                  <input required type="text" placeholder="Adanhoume" className={inputClass}
+                    value={proprioForm.nom} onChange={e => setProprioForm(f => ({ ...f, nom: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email *</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input required type="email" placeholder="koffi@exemple.com" className={`${inputClass} pl-11`}
+                    value={proprioForm.email} onChange={e => setProprioForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Téléphone *</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input required type="tel" placeholder="+229 97 00 00 00" className={`${inputClass} pl-11`}
+                    value={proprioForm.telephone} onChange={e => setProprioForm(f => ({ ...f, telephone: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pays *</label>
+                <select required className={inputClass}
+                  value={proprioForm.pays} onChange={e => setProprioForm(f => ({ ...f, pays: e.target.value }))}>
+                  <option value="Bénin">Bénin</option>
+                  <option value="Côte d'Ivoire">Côte d'Ivoire</option>
+                  <option value="Sénégal">Sénégal</option>
+                  <option value="Togo">Togo</option>
+                  <option value="Cameroun">Cameroun</option>
+                  <option value="Mali">Mali</option>
+                  <option value="Guinée">Guinée</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mot de passe *</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input required type={showPwd ? 'text' : 'password'} minLength={6} placeholder="Minimum 6 caractères"
+                    className={`${inputClass} pl-11 pr-11`}
+                    value={proprioForm.password} onChange={e => setProprioForm(f => ({ ...f, password: e.target.value }))} />
+                  <button type="button" onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+              <button type="submit" disabled={isLoading}
+                className="w-full bg-[#1A1A2E] text-white py-4 rounded-xl font-bold hover:bg-[#252542] transition-all disabled:opacity-70 flex items-center justify-center gap-2 mt-1">
+                {isLoading ? <><Loader2 className="animate-spin" size={18} /> Création...</> : 'Créer mon compte propriétaire'}
+              </button>
+            </form>
+          )}
+
+          {/* FORMULAIRE LOCATAIRE */}
+          {step === 1 && activeTab === 'locataire' && (
+            <form onSubmit={handleLocataireSubmit} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Code de votre propriétaire *</label>
+                <div className="relative">
+                  <input type="text" required placeholder="Ex: IMMO-A1B2" maxLength={20}
+                    className={`${inputClass} pr-24 font-mono font-bold text-center tracking-widest`}
+                    style={{ textTransform: 'uppercase' }}
+                    value={locForm.codeProprietaire}
+                    onChange={e => {
+                      const v = e.target.value.toUpperCase();
+                      setLocForm(f => ({ ...f, codeProprietaire: v }));
+                      setCodeVerified(false); setOwnerFound(null);
+                      if (v.length >= 6) verifierCode(v);
+                    }} />
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                    {codeLoading ? <Loader2 size={16} className="animate-spin text-slate-400" /> :
+                      codeVerified ? <Check size={16} className="text-green-600" /> : null}
+                  </div>
+                </div>
+                {ownerFound && (
+                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2">
+                    <Check size={12} /> Propriétaire trouvé : <strong>{ownerFound.prenom} {ownerFound.nom}</strong>
                   </div>
                 )}
-              </motion.div>
-            ) : (
-              <motion.div 
-                key={`locataire-step-${step}`}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                exit={{ opacity: 0, scale: 1.05 }}
-                className="space-y-6"
-              >
-                {step === 1 ? (
-                  !ownerFound ? (
-                    <div className="space-y-4">
-                      <div className="space-y-1">
-                        <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Code Propriétaire</label>
-                        <input 
-                          required 
-                          type="text" 
-                          value={proprietaireCode}
-                          onChange={(e) => setProprietaireCode(e.target.value.toUpperCase())}
-                          className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-4 text-center font-mono text-xl font-bold focus:outline-none focus:border-[#B8860B] transition-colors uppercase" 
-                          placeholder="Ex: INV-ABC123 ou IMMO-1234"
-                        />
-                        <p className="text-[10px] text-slate-400 italic text-center mt-2">Code d'invitation (INV-...) ou code propriétaire (IMMO-...) remis par votre bailleur.</p>
-                      </div>
-                      <button 
-                        type="button"
-                        onClick={handleLocataireSearch}
-                        disabled={isLoading}
-                        className="w-full bg-[#1A1A2E] text-white py-4 rounded-xl font-bold hover:shadow-xl transition-all disabled:opacity-70 flex items-center justify-center gap-2"
-                      >
-                        {isLoading ? (
-                          <>
-                            <Loader2 className="animate-spin" size={20} />
-                            Recherche...
-                          </>
-                        ) : (
-                          "Trouver mon propriétaire"
-                        )}
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-blue-50 border border-blue-100 rounded-2xl flex items-center gap-4">
-                        <div className="w-10 h-10 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
-                          {ownerFound.prenom.charAt(0)}
-                        </div>
-                        <div>
-                          <p className="text-[10px] font-bold text-blue-600 uppercase tracking-widest">Propriétaire Trouvé</p>
-                          <h4 className="font-bold text-slate-800">{ownerFound.prenom} {ownerFound.nom}</h4>
-                        </div>
-                      </div>
-                      
-                      <form onSubmit={handleLocataireSubmit} className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prénom</label>
-                            <input 
-                              required 
-                              type="text" 
-                              value={locataireForm.prenom}
-                              onChange={(e) => setLocataireForm({ ...locataireForm, prenom: e.target.value })}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" 
-                              placeholder="Moussa" 
-                            />
-                          </div>
-                          <div className="space-y-1">
-                            <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom</label>
-                            <input 
-                              required 
-                              type="text" 
-                              value={locataireForm.nom}
-                              onChange={(e) => setLocataireForm({ ...locataireForm, nom: e.target.value })}
-                              className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" 
-                              placeholder="Kone" 
-                            />
-                          </div>
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email</label>
-                          <input 
-                            required 
-                            type="email" 
-                            value={locataireForm.email}
-                            onChange={(e) => setLocataireForm({ ...locataireForm, email: e.target.value })}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" 
-                            placeholder="moussa@exemple.com" 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Téléphone Mobile Money</label>
-                          <input 
-                            required 
-                            type="tel" 
-                            value={locataireForm.telephone}
-                            onChange={(e) => setLocataireForm({ ...locataireForm, telephone: e.target.value })}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" 
-                            placeholder="+225 ..." 
-                          />
-                        </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mot de passe</label>
-                          <input 
-                            required 
-                            type="password" 
-                            value={locataireForm.password}
-                            onChange={(e) => setLocataireForm({ ...locataireForm, password: e.target.value })}
-                            minLength={6}
-                            className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 text-sm" 
-                            placeholder="Minimum 6 caractères"
-                          />
-                        </div>
-                        <div className="p-3 bg-amber-50 rounded-xl border border-amber-100 text-[11px] text-amber-700 italic">
-                          Une fois inscrit, votre propriétaire devra vous assigner votre unité (chambre, appartement, etc.) pour commencer les paiements.
-                        </div>
-                        <button 
-                          type="submit"
-                          disabled={isLoading}
-                          className="w-full bg-[#1A1A2E] text-white py-4 rounded-xl font-bold disabled:opacity-70 flex items-center justify-center gap-2"
-                        >
-                          {isLoading ? (
-                            <>
-                              <Loader2 className="animate-spin" size={20} />
-                              Création en cours...
-                            </>
-                          ) : (
-                            "Créer mon compte locataire"
-                          )}
-                        </button>
-                      </form>
-                    </div>
-                  )
-                ) : (
-                  <div className="text-center space-y-6 py-4">
-                    <div className="w-20 h-20 bg-green-100 text-green-600 rounded-full mx-auto flex items-center justify-center">
-                      <Check size={40} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl font-bold text-slate-800">Inscription réussie !</h3>
-                      <p className="text-sm text-slate-500 mt-2 italic px-4">
-                        Vérifiez votre email pour confirmer votre inscription. Votre propriétaire sera notifié de votre demande.
-                      </p>
-                    </div>
-                    <div className="pt-4">
-                      <button 
-                        onClick={() => navigate('/auth/connexion')}
-                        className="text-sm font-bold text-[#1A1A2E] underline underline-offset-4 hover:text-[#B8860B]"
-                      >
-                        Se connecter maintenant
-                      </button>
-                    </div>
-                  </div>
+                {!codeVerified && locForm.codeProprietaire.length > 5 && !codeLoading && (
+                  <p className="text-xs text-red-500 px-1">Code introuvable. Demandez le bon code à votre propriétaire.</p>
                 )}
-              </motion.div>
-            )}
-          </AnimatePresence>
+                <p className="text-[10px] text-slate-400 italic">Code fourni par votre propriétaire (format IMMO-XXXX)</p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Prénom *</label>
+                  <input required type="text" placeholder="Moussa" className={inputClass}
+                    value={locForm.prenom} onChange={e => setLocForm(f => ({ ...f, prenom: e.target.value }))} />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom *</label>
+                  <input required type="text" placeholder="Koné" className={inputClass}
+                    value={locForm.nom} onChange={e => setLocForm(f => ({ ...f, nom: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Email *</label>
+                <div className="relative">
+                  <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input required type="email" placeholder="moussa@exemple.com" className={`${inputClass} pl-11`}
+                    value={locForm.email} onChange={e => setLocForm(f => ({ ...f, email: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Téléphone MoMo *</label>
+                <div className="relative">
+                  <Phone className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input required type="tel" placeholder="+229 97 00 00 00" className={`${inputClass} pl-11`}
+                    value={locForm.telephone} onChange={e => setLocForm(f => ({ ...f, telephone: e.target.value }))} />
+                </div>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Mot de passe *</label>
+                <div className="relative">
+                  <Lock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={15} />
+                  <input required type={showPwd ? 'text' : 'password'} minLength={6} placeholder="Minimum 6 caractères"
+                    className={`${inputClass} pl-11 pr-11`}
+                    value={locForm.password} onChange={e => setLocForm(f => ({ ...f, password: e.target.value }))} />
+                  <button type="button" onClick={() => setShowPwd(!showPwd)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+                    {showPwd ? <EyeOff size={15} /> : <Eye size={15} />}
+                  </button>
+                </div>
+              </div>
+              <button type="submit" disabled={isLoading || !ownerFound}
+                className="w-full bg-[#1A1A2E] text-white py-4 rounded-xl font-bold hover:bg-[#252542] transition-all disabled:opacity-50 flex items-center justify-center gap-2 mt-1">
+                {isLoading ? <><Loader2 className="animate-spin" size={18} /> Inscription...</> : 'Créer mon compte locataire'}
+              </button>
+            </form>
+          )}
         </div>
 
-        <p className="text-center text-slate-400 mt-8 text-sm">
-          Vous avez déjà un compte ? <Link to="/auth/connexion" className="text-[#B8860B] font-bold hover:underline">Connectez-vous</Link>
+        <p className="text-center text-slate-400 mt-6 text-sm">
+          Déjà un compte ? <Link to="/auth/connexion" className="text-[#B8860B] font-bold hover:underline">Se connecter</Link>
         </p>
       </div>
     </div>

@@ -746,6 +746,60 @@ export async function imputerAvance(avanceId: string, montantImpute: number, mon
 }
 
 // ============================================
+// PROFIL LOCATAIRE (côté locataire connecté)
+// ============================================
+
+export function useMyLocataireProfile() {
+  const { user } = useAuth();
+  const { data, error, isLoading, mutate } = useSWR<Locataire | null>(
+    user ? `my-locataire-${user.id}` : null,
+    async () => {
+      if (!supabase) return null;
+      const { data, error } = await supabase
+        .from('locataires')
+        .select('*')
+        .eq('user_id', user!.id)
+        .maybeSingle();
+      if (error) return null;
+      return data;
+    }
+  );
+  return { locataire: data || null, isLoading, isError: error, refresh: mutate };
+}
+
+export async function linkLocataireToUser(userId: string, proprietaireId: string, nom: string, prenom: string, telephone: string) {
+  if (!supabase) throw new Error('Supabase not configured');
+  // Chercher un locataire existant correspondant (même nom + proprio)
+  const { data: existing } = await supabase
+    .from('locataires')
+    .select('id')
+    .eq('proprietaire_id', proprietaireId)
+    .eq('nom', nom)
+    .eq('prenom', prenom)
+    .is('user_id', null)
+    .maybeSingle();
+
+  if (existing) {
+    // Lier le compte auth à l'enregistrement locataire existant
+    await supabase.from('locataires').update({ user_id: userId }).eq('id', existing.id);
+    return existing.id;
+  } else {
+    // Créer un nouvel enregistrement locataire
+    const { data, error } = await supabase.from('locataires').insert({
+      user_id: userId,
+      proprietaire_id: proprietaireId,
+      nom,
+      prenom,
+      telephone,
+      email: null,
+      date_entree: new Date().toISOString().split('T')[0],
+    }).select().single();
+    if (error) throw error;
+    return data.id;
+  }
+}
+
+// ============================================
 // CAUTIONS
 // ============================================
 
