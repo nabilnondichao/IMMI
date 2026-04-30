@@ -69,6 +69,7 @@ import {
 import { StatutContrat, StatutUnite } from '@/types/immoafrik';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ContratPDF } from '@/components/contrats/ContratPDF';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ContratsPage() {
   const [searchTerm, setSearchTerm] = useState('');
@@ -86,6 +87,7 @@ export default function ContratsPage() {
     conditions: ''
   });
 
+  const { profile } = useAuth();
   // Fetch real data
   const { maisons, isLoading: maisonsLoading } = useMaisons();
   const { unites, isLoading: unitesLoading } = useAllUnites();
@@ -95,7 +97,7 @@ export default function ContratsPage() {
   const isLoading = maisonsLoading || unitesLoading || locatairesLoading || contratsLoading;
 
   // Get current user as proprietaire (assuming authenticated user)
-  const proprio = { nom: 'Propriétaire', prenom: '', email: '' }; // TODO: get from auth context
+  const proprio = { nom: profile?.nom || 'Propriétaire', prenom: profile?.prenom || '', email: profile?.email || '', pays: profile?.pays || 'Bénin' };
 
   // --- DERIVED DATA ---
   const filteredContracts = useMemo(() => {

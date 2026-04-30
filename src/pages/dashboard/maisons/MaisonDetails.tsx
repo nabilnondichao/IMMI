@@ -70,7 +70,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ScrollArea } from "@/components/ui/scroll-area";
+// ScrollArea supprimé — composant non disponible, utiliser overflow-y-auto
 
 export default function MaisonDetails() {
   const { id } = useParams();
@@ -362,8 +362,8 @@ export default function MaisonDetails() {
                           {new Date(paiement.created_at).toLocaleDateString('fr-FR')}
                         </TableCell>
                         <TableCell>
-                          <Badge className={`text-[9px] font-black rounded-full ${paiement.statut === 'paye' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'}`}>
-                            {paiement.statut === 'paye' ? 'PAYÉ' : 'EN ATTENTE'}
+                          <Badge className={`text-[9px] font-black rounded-full ${paiement.statut === 'payé' ? 'bg-green-100 text-green-600' : 'bg-purple-100 text-purple-600'}`}>
+                            {paiement.statut === 'payé' ? 'PAYÉ' : 'EN ATTENTE'}
                           </Badge>
                         </TableCell>
                       </TableRow>
