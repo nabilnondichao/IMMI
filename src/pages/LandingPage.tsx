@@ -61,7 +61,7 @@ export default function LandingPage() {
             <a href="#pricing" className="hover:text-[#B8860B] transition-colors">Tarifs</a>
             <Link to="/auth/connexion" className="hover:text-white transition-colors">Connexion</Link>
             <Link to="/auth/inscription" className="bg-[#B8860B] text-white px-5 py-2.5 rounded-full hover:bg-opacity-90 transition-all font-bold">
-              Essai Gratuit
+              Commencer gratuitement
             </Link>
           </div>
 
@@ -166,37 +166,47 @@ export default function LandingPage() {
 
       {/* Pricing Section */}
       <section id="pricing" className="py-24 bg-slate-900 text-white relative overflow-hidden">
-        <div className="max-w-7xl mx-auto px-6 relative z-10">
-          <h2 className="text-3xl md:text-5xl font-black text-center mb-16 underline decoration-[#B8860B] decoration-8 underline-offset-8">Nos Forfaits</h2>
-          
-          <div className="grid md:grid-cols-2 gap-12 max-w-4xl mx-auto">
-            {/* Starter */}
-            <div className="p-10 rounded-[2.5rem] bg-white text-slate-900 border-4 border-slate-200">
-              <div className="text-xs font-black uppercase tracking-widest text-slate-400 mb-2">Idéal pour débuter</div>
-              <h3 className="text-3xl font-black mb-6">Starter</h3>
-              <div className="text-5xl font-black mb-4">5.000 <span className="text-lg">FCFA/mois</span></div>
-              <ul className="space-y-4 mb-10 text-slate-500 font-medium">
-                <li className="flex items-center gap-3">✓ Jusqu'à 10 unités</li>
-                <li className="flex items-center gap-3">✓ Suivi des arriérés</li>
-                <li className="flex items-center gap-3">✓ Support standard</li>
-              </ul>
-              <Link to="/auth/inscription" className="w-full block py-4 text-center rounded-2xl bg-slate-900 text-white font-bold hover:bg-slate-800 transition-colors">Choisir Starter</Link>
-            </div>
+        <div className="max-w-5xl mx-auto px-6 relative z-10 text-center">
+          <p className="text-[#B8860B] font-black uppercase tracking-widest text-xs mb-4">Modèle transparent</p>
+          <h2 className="text-3xl md:text-5xl font-black mb-6">Gratuit pour commencer.<br />3,5% seulement quand vous encaissez.</h2>
+          <p className="text-slate-400 max-w-2xl mx-auto mb-16 text-lg">
+            Pas d'abonnement mensuel. Pas de frais cachés. ImmoAfrik prend uniquement <strong className="text-[#B8860B]">3,5%</strong> sur chaque loyer confirmé — vous ne payez que quand vous gagnez.
+          </p>
 
-            {/* Pro */}
-            <div className="p-10 rounded-[2.5rem] bg-[#B8860B] text-white shadow-2xl shadow-[#B8860B]/20 transform md:scale-105">
-              <div className="text-xs font-black uppercase tracking-widest text-amber-200 mb-2">Recommandé</div>
-              <h3 className="text-3xl font-black mb-6">Pro</h3>
-              <div className="text-5xl font-black mb-4">15.000 <span className="text-lg">FCFA/mois</span></div>
-              <ul className="space-y-4 mb-10 font-medium text-amber-50">
-                <li className="flex items-center gap-3">✓ Unités illimitées</li>
-                <li className="flex items-center gap-3">✓ Analytics avancés</li>
-                <li className="flex items-center gap-3">✓ Gestion des dépenses</li>
-                <li className="flex items-center gap-3">✓ Priorité support</li>
-              </ul>
-              <Link to="/auth/inscription" className="w-full block py-4 text-center rounded-2xl bg-[#1A1A2E] text-white font-bold hover:bg-opacity-90 transition-all shadow-lg">Devenir Pro</Link>
+          <div className="grid md:grid-cols-3 gap-6 mb-12">
+            {[
+              { label: 'Inscription', value: 'Gratuite', sub: 'Pour toujours' },
+              { label: 'Commission', value: '3,5%', sub: 'Par loyer confirmé' },
+              { label: 'Abonnement', value: '0 FCFA', sub: 'Aucun forfait fixe' },
+            ].map((item, i) => (
+              <div key={i} className="bg-white/5 border border-white/10 rounded-3xl p-8">
+                <p className="text-slate-400 text-xs font-black uppercase tracking-widest mb-3">{item.label}</p>
+                <p className="text-5xl font-black text-[#B8860B] mb-2">{item.value}</p>
+                <p className="text-slate-400 text-sm font-medium">{item.sub}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="bg-white/5 border border-[#B8860B]/30 rounded-3xl p-8 max-w-2xl mx-auto mb-10">
+            <p className="font-black text-white text-lg mb-4">Exemple concret</p>
+            <div className="grid grid-cols-3 gap-4 text-center">
+              <div>
+                <p className="text-2xl font-black text-white">50 000</p>
+                <p className="text-xs text-slate-400 mt-1">FCFA loyer perçu</p>
+              </div>
+              <div className="flex items-center justify-center">
+                <span className="text-[#B8860B] font-black text-2xl">→</span>
+              </div>
+              <div>
+                <p className="text-2xl font-black text-[#B8860B]">1 750</p>
+                <p className="text-xs text-slate-400 mt-1">FCFA commission (3,5%)</p>
+              </div>
             </div>
           </div>
+
+          <Link to="/auth/inscription" className="inline-flex items-center gap-3 px-10 py-5 bg-[#B8860B] rounded-2xl font-black text-lg hover:bg-[#9A700A] transition-all hover:scale-105">
+            Créer mon compte gratuitement <ArrowRight size={22} />
+          </Link>
         </div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#B8860B]/5 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#B8860B]/5 blur-[100px] rounded-full -translate-x-1/2 translate-y-1/2" />

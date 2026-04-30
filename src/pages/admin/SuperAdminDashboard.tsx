@@ -76,12 +76,6 @@ export default function SuperAdminDashboard() {
     }
   }
 
-  const PLAN_COLOR: Record<string, string> = {
-    starter: 'bg-slate-100 text-slate-600',
-    pro: 'bg-[#B8860B]/10 text-[#B8860B]',
-    enterprise: 'bg-purple-100 text-purple-700',
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -170,8 +164,8 @@ export default function SuperAdminDashboard() {
                   <p className="text-sm font-black text-green-600 flex items-center gap-1"><TrendingUp size={14} />{p.revenus_mois.toLocaleString()}</p>
                   <p className="text-[9px] text-slate-400 font-bold uppercase">FCFA/mois</p>
                 </div>
-                <Badge className={`${PLAN_COLOR[p.abonnement_plan] || PLAN_COLOR.starter} border-none font-black text-xs uppercase`}>
-                  {p.abonnement_plan}
+                <Badge className="bg-[#B8860B]/10 text-[#B8860B] border-none font-black text-xs uppercase">
+                  3,5%
                 </Badge>
               </div>
             </div>

@@ -20,7 +20,6 @@ import {
   BellRing,
   Users,
   TrendingUp,
-  Crown,
   Landmark,
   MessageCircle,
   Percent,
@@ -87,7 +86,6 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <Shield size={20} />, label: 'Cautions', path: '/dashboard/cautions' },
     { icon: <UserCog size={20} />, label: 'Gestionnaires', path: '/dashboard/gestionnaires' },
     { icon: <BellRing size={20} />, label: 'Alertes', path: '/dashboard/alertes' },
-    { icon: <Crown size={20} />, label: 'Abonnement', path: '/dashboard/abonnement' },
     { icon: <ShieldCheck size={20} />, label: 'Super Admin', path: '/admin' },
   ];
 
@@ -196,8 +194,7 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
                    {profile?.prenom || 'Utilisateur'} {profile?.nom || ''}
                  </p>
                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">
-                   {profile?.role === 'proprietaire' ? 'Propriétaire' : 'Locataire'} 
-                   {profile?.abonnement_plan === 'pro' ? ' PRO' : ''}
+                   {profile?.role === 'proprietaire' ? 'Propriétaire' : 'Locataire'}
                  </p>
                </div>
                <div className="w-10 h-10 bg-[#1A1A2E] rounded-xl flex items-center justify-center font-bold text-white text-xs">

@@ -1,94 +1,34 @@
-import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Zap, Building2, Crown, ArrowLeft, Phone, MessageCircle } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Percent, Wallet, Zap, MessageCircle, ArrowRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
-const PLANS = [
-  {
-    id: 'starter',
-    nom: 'Starter',
-    prix: 0,
-    devise: 'FCFA',
-    periode: 'Gratuit pour toujours',
-    icon: <Building2 size={28} />,
-    couleur: 'bg-slate-800',
-    badge: null,
-    features: [
-      'Jusqu\'à 2 maisons',
-      'Jusqu\'à 10 unités',
-      'Paiements cash uniquement',
-      'Reçus PDF basiques',
-      'Dashboard basique',
-      'Gestion locataires (limité)',
-    ],
-    limitations: [
-      'Pas de Mobile Money',
-      'Pas d\'upload de contrats',
-      'Pas d\'analytiques avancées',
-      'Pas de codes invitation',
-    ],
-  },
-  {
-    id: 'pro',
-    nom: 'Pro',
-    prix: 4990,
-    devise: 'FCFA',
-    periode: 'par mois',
-    icon: <Zap size={28} />,
-    couleur: 'bg-[#B8860B]',
-    badge: 'Le plus populaire',
-    features: [
-      'Maisons illimitées',
-      'Unités illimitées',
-      'Mobile Money (MTN, Orange, Wave, Moov)',
-      'Reçus PDF automatiques',
-      'Upload contrats PDF',
-      'Analytiques complètes',
-      'Codes invitation locataires',
-      'Avances loyer / eau / électricité',
-      'Gestion AIRBNB + longue durée',
-      'Notifications en temps réel',
-      'Support par email',
-    ],
-    limitations: [],
-  },
-  {
-    id: 'enterprise',
-    nom: 'Enterprise',
-    prix: 14990,
-    devise: 'FCFA',
-    periode: 'par mois',
-    icon: <Crown size={28} />,
-    couleur: 'bg-[#1A1A2E]',
-    badge: 'Tout inclus',
-    features: [
-      'Tout du plan Pro',
-      'Multi-gestionnaire (inviter employé)',
-      'Export comptable CSV / Excel',
-      'Rapport fiscal automatique annuel',
-      'Bot WhatsApp pour locataires',
-      'OCR pièces d\'identité',
-      'Tableau de bord multi-propriétés',
-      'Statistiques avancées',
-      'Support prioritaire 24h/7j',
-      'Formation personnalisée',
-    ],
-    limitations: [],
-  },
+const EXEMPLES = [
+  { loyer: 25000, label: 'Chambre simple' },
+  { loyer: 50000, label: 'Chambre salon' },
+  { loyer: 100000, label: 'Appartement' },
+  { loyer: 150000, label: 'Boutique' },
 ];
 
-const MOMO_NUMEROS = {
-  pro: { numero: '+229 XX XX XX XX', nom: 'ImmoAfrik Pro', reference: 'IMMO-PRO' },
-  enterprise: { numero: '+229 XX XX XX XX', nom: 'ImmoAfrik Enterprise', reference: 'IMMO-ENT' },
-};
+const AVANTAGES = [
+  'Inscription et utilisation gratuite',
+  'Maisons et unités illimitées',
+  'Mobile Money (MTN, Orange, Wave, Moov)',
+  'Suivi arriérés et paiements',
+  'Contrats PDF, reçus automatiques',
+  'Gestion des dépenses et actifs',
+  'Locataires avec espace dédié',
+  'Analytiques et rapports complets',
+  'Gestionnaires (inviter un employé)',
+  'Support WhatsApp',
+];
 
 export default function TarifsPage() {
   const navigate = useNavigate();
-  const [planChoisi, setPlanChoisi] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-[#F8FAFC]">
       {/* Header */}
-      <div className="bg-[#1A1A2E] text-white py-16 px-6 text-center relative overflow-hidden">
+      <div className="bg-[#1A1A2E] text-white py-20 px-6 text-center relative overflow-hidden">
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#B8860B]/10 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2" />
         <button
           onClick={() => navigate('/')}
@@ -96,162 +36,111 @@ export default function TarifsPage() {
         >
           <ArrowLeft size={16} /> Accueil
         </button>
-        <div className="relative z-10">
-          <span className="text-[#B8860B] font-black uppercase tracking-widest text-xs">ImmoAfrik</span>
-          <h1 className="text-4xl md:text-5xl font-black mt-3 mb-4">Nos tarifs simples</h1>
-          <p className="text-slate-400 max-w-xl mx-auto">
-            Gérez votre patrimoine immobilier en Afrique avec des outils professionnels. Commencez gratuitement, évoluez selon vos besoins.
+        <div className="relative z-10 max-w-3xl mx-auto">
+          <span className="text-[#B8860B] font-black uppercase tracking-widest text-xs">Modèle simple et transparent</span>
+          <h1 className="text-4xl md:text-6xl font-black mt-3 mb-4">
+            Gratuit. <br />
+            <span className="text-[#B8860B]">3,5%</span> par loyer perçu.
+          </h1>
+          <p className="text-slate-400 text-lg max-w-xl mx-auto">
+            Aucun abonnement fixe. ImmoAfrik perçoit uniquement une petite commission sur chaque loyer que vous confirmez — vous ne payez que quand vous encaissez.
           </p>
         </div>
       </div>
 
-      {/* Plans */}
-      <div className="max-w-6xl mx-auto px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {PLANS.map(plan => (
-            <div
-              key={plan.id}
-              className={`relative bg-white rounded-[2rem] shadow-sm border-2 overflow-hidden transition-all hover:shadow-lg ${
-                plan.id === 'pro' ? 'border-[#B8860B] scale-105 shadow-[#B8860B]/20 shadow-lg' : 'border-slate-100'
-              }`}
-            >
-              {plan.badge && (
-                <div className={`${plan.couleur} text-white text-center py-2 text-[10px] font-black uppercase tracking-widest`}>
-                  {plan.badge}
-                </div>
-              )}
+      <div className="max-w-4xl mx-auto px-6 py-16 space-y-12">
 
-              <div className="p-8">
-                <div className={`w-14 h-14 ${plan.couleur} text-white rounded-2xl flex items-center justify-center mb-4`}>
-                  {plan.icon}
-                </div>
-                <h2 className="text-2xl font-black text-[#1A1A2E]">{plan.nom}</h2>
-                <div className="mt-3 mb-6">
-                  {plan.prix === 0 ? (
-                    <p className="text-3xl font-black text-[#1A1A2E]">Gratuit</p>
-                  ) : (
-                    <div>
-                      <span className="text-4xl font-black text-[#1A1A2E]">{plan.prix.toLocaleString()}</span>
-                      <span className="text-slate-400 font-bold ml-2">FCFA / mois</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-slate-400 mt-1">{plan.periode}</p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    if (plan.id === 'starter') {
-                      navigate('/auth/inscription');
-                    } else {
-                      setPlanChoisi(plan.id);
-                    }
-                  }}
-                  className={`w-full py-4 rounded-2xl font-black text-sm transition-all mb-8 ${
-                    plan.id === 'pro'
-                      ? 'bg-[#B8860B] text-white hover:bg-[#9A700A]'
-                      : plan.id === 'enterprise'
-                      ? 'bg-[#1A1A2E] text-white hover:bg-[#252542]'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {plan.id === 'starter' ? 'Commencer gratuitement' : `Passer au ${plan.nom}`}
-                </button>
-
-                <div className="space-y-3">
-                  {plan.features.map((f, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                        <Check size={12} className="text-green-600" />
-                      </div>
-                      <span className="text-sm text-slate-600 font-medium">{f}</span>
-                    </div>
-                  ))}
-                  {plan.limitations.map((f, i) => (
-                    <div key={i} className="flex items-start gap-3 opacity-40">
-                      <div className="w-5 h-5 bg-slate-100 rounded-full flex items-center justify-center shrink-0 mt-0.5">
-                        <span className="text-slate-400 text-xs font-black">✕</span>
-                      </div>
-                      <span className="text-sm text-slate-400 font-medium">{f}</span>
-                    </div>
-                  ))}
-                </div>
+        {/* Principe */}
+        <div className="grid md:grid-cols-3 gap-6">
+          {[
+            { icon: <Zap size={28} className="text-[#B8860B]" />, titre: 'Inscription gratuite', desc: 'Créez votre compte et commencez à gérer vos biens immédiatement, sans payer.' },
+            { icon: <Percent size={28} className="text-[#B8860B]" />, titre: '3,5% de commission', desc: 'Pour chaque loyer confirmé sur la plateforme, ImmoAfrik prend 3,5%. Rien d\'autre.' },
+            { icon: <Wallet size={28} className="text-[#B8860B]" />, titre: 'Paiement via MoMo', desc: 'Réglez votre commission mensuelle via Mobile Money directement depuis votre dashboard.' },
+          ].map((item, i) => (
+            <div key={i} className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8 text-center">
+              <div className="w-14 h-14 bg-[#B8860B]/10 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                {item.icon}
               </div>
+              <h3 className="font-black text-[#1A1A2E] text-lg mb-3">{item.titre}</h3>
+              <p className="text-slate-500 text-sm leading-relaxed">{item.desc}</p>
             </div>
           ))}
         </div>
 
-        {/* FAQ Paiement */}
-        <div className="mt-16 bg-white rounded-[2rem] p-8 border border-slate-100 shadow-sm">
-          <h3 className="text-xl font-black text-[#1A1A2E] mb-6">Comment payer votre abonnement ?</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-[#B8860B]/10 rounded-2xl flex items-center justify-center shrink-0">
-                <Phone size={20} className="text-[#B8860B]" />
+        {/* Simulateur */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
+          <h2 className="text-xl font-black text-[#1A1A2E] mb-2">Simulateur de commission</h2>
+          <p className="text-sm text-slate-500 mb-6">Ce que vous payez selon le montant de vos loyers perçus par mois</p>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            {EXEMPLES.map((ex) => (
+              <div key={ex.loyer} className="bg-slate-50 rounded-2xl p-5 text-center">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{ex.label}</p>
+                <p className="text-lg font-black text-[#1A1A2E]">{ex.loyer.toLocaleString()}</p>
+                <p className="text-[10px] text-slate-400 mb-3">FCFA/mois</p>
+                <div className="h-px bg-slate-200 mb-3" />
+                <p className="text-xs font-medium text-slate-500">Commission</p>
+                <p className="text-xl font-black text-[#B8860B]">{Math.round(ex.loyer * 3.5 / 100).toLocaleString()}</p>
+                <p className="text-[10px] text-[#B8860B]">FCFA</p>
               </div>
-              <div>
-                <p className="font-black text-slate-800 text-sm">Mobile Money</p>
-                <p className="text-xs text-slate-500 mt-1">MTN, Orange, Wave, Moov — envoyez directement sur notre numéro avec votre référence.</p>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-4 text-center">
+            Commission calculée uniquement sur les paiements <strong>confirmés</strong> — pas sur les paiements en attente.
+          </p>
+        </div>
+
+        {/* Ce qui est inclus */}
+        <div className="bg-[#1A1A2E] rounded-[2rem] p-8 text-white">
+          <h2 className="text-xl font-black mb-6 flex items-center gap-2">
+            <CheckCircle2 size={22} className="text-[#B8860B]" /> Tout est inclus — aucune fonctionnalité cachée
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {AVANTAGES.map((a, i) => (
+              <div key={i} className="flex items-center gap-3">
+                <div className="w-5 h-5 bg-[#B8860B]/20 rounded-full flex items-center justify-center shrink-0">
+                  <CheckCircle2 size={12} className="text-[#B8860B]" />
+                </div>
+                <span className="text-sm text-slate-300 font-medium">{a}</span>
               </div>
-            </div>
-            <div className="flex gap-4">
-              <div className="w-10 h-10 bg-green-50 rounded-2xl flex items-center justify-center shrink-0">
-                <MessageCircle size={20} className="text-green-600" />
+            ))}
+          </div>
+        </div>
+
+        {/* FAQ */}
+        <div className="bg-white rounded-[2rem] border border-slate-100 shadow-sm p-8">
+          <h2 className="text-xl font-black text-[#1A1A2E] mb-6">Questions fréquentes</h2>
+          <div className="space-y-5">
+            {[
+              { q: 'Quand est-ce que je paie la commission ?', r: 'La commission est calculée à la fin de chaque mois, uniquement sur les paiements que vous avez confirmés. Vous recevez un récapitulatif et payez via Mobile Money.' },
+              { q: 'Que se passe-t-il si je ne confirme pas de paiements ce mois ?', r: 'Rien. Si vous n\'avez pas confirmé de paiement, vous ne payez rien. Gratuit complet.' },
+              { q: 'Les avances, cautions et dépenses sont-elles incluses dans la commission ?', r: 'Non. La commission de 3,5% s\'applique uniquement sur les loyers confirmés. Les cautions, avances et dépenses ne sont pas soumises à commission.' },
+              { q: 'Puis-je utiliser ImmoAfrik pour mes locataires aussi ?', r: 'Oui. Vos locataires ont un espace gratuit dédié pour envoyer leurs preuves de paiement et suivre leur historique. Leur inscription est entièrement gratuite.' },
+            ].map((faq, i) => (
+              <div key={i} className="border-b border-slate-100 pb-5">
+                <p className="font-black text-[#1A1A2E] mb-2">{faq.q}</p>
+                <p className="text-sm text-slate-500 leading-relaxed">{faq.r}</p>
               </div>
-              <div>
-                <p className="font-black text-slate-800 text-sm">WhatsApp</p>
-                <p className="text-xs text-slate-500 mt-1">Contactez-nous sur WhatsApp après votre paiement pour une activation rapide.</p>
-              </div>
-            </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA */}
+        <div className="text-center py-6">
+          <h3 className="text-2xl font-black text-[#1A1A2E] mb-3">Prêt à simplifier votre gestion ?</h3>
+          <p className="text-slate-500 mb-6">Inscription gratuite, sans carte bancaire requise.</p>
+          <div className="flex gap-4 justify-center flex-wrap">
+            <Link to="/auth/inscription"
+              className="px-8 py-4 bg-[#B8860B] text-white rounded-2xl font-black flex items-center gap-2 hover:bg-[#9A700A] transition-all">
+              Créer mon compte <ArrowRight size={18} />
+            </Link>
+            <button
+              onClick={() => window.open('https://wa.me/22900000000?text=Bonjour ImmoAfrik, je souhaite en savoir plus sur la plateforme.', '_blank')}
+              className="px-8 py-4 bg-[#25D366] text-white rounded-2xl font-black flex items-center gap-2 hover:bg-[#128C7E] transition-all">
+              <MessageCircle size={18} /> Nous contacter
+            </button>
           </div>
         </div>
       </div>
-
-      {/* Modal instruction paiement */}
-      {planChoisi && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2rem] p-8 max-w-md w-full shadow-2xl">
-            <h3 className="text-xl font-black text-[#1A1A2E] mb-2">
-              Abonnement {planChoisi === 'pro' ? 'Pro — 4 990 FCFA' : 'Enterprise — 14 990 FCFA'}
-            </h3>
-            <p className="text-sm text-slate-500 mb-6">Suivez ces étapes pour activer votre abonnement :</p>
-
-            <div className="space-y-4 mb-6">
-              {[
-                { n: '1', txt: `Envoyez ${planChoisi === 'pro' ? '4 990' : '14 990'} FCFA via Mobile Money au numéro ci-dessous` },
-                { n: '2', txt: 'Utilisez comme motif/référence : IMMO-' + planChoisi.toUpperCase() + '-[VOTRE_EMAIL]' },
-                { n: '3', txt: 'Envoyez la capture de confirmation sur WhatsApp' },
-                { n: '4', txt: 'Votre compte est activé sous 2h maximum' },
-              ].map(s => (
-                <div key={s.n} className="flex gap-3 items-start">
-                  <div className="w-7 h-7 bg-[#B8860B] text-white rounded-full flex items-center justify-center font-black text-xs shrink-0">{s.n}</div>
-                  <p className="text-sm text-slate-600 font-medium pt-0.5">{s.txt}</p>
-                </div>
-              ))}
-            </div>
-
-            <div className="bg-[#1A1A2E] rounded-2xl p-4 text-center mb-6">
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mb-1">Numéro MoMo ImmoAfrik</p>
-              <p className="text-2xl font-black text-[#B8860B]">+229 XX XX XX XX</p>
-              <p className="text-xs text-slate-400 mt-1">MTN / Orange / Wave / Moov</p>
-            </div>
-
-            <div className="flex gap-3">
-              <button
-                onClick={() => window.open('https://wa.me/22900000000?text=Bonjour, je viens de payer mon abonnement ImmoAfrik ' + planChoisi.toUpperCase(), '_blank')}
-                className="flex-1 bg-[#25D366] text-white py-3 rounded-2xl font-bold text-sm flex items-center justify-center gap-2"
-              >
-                <MessageCircle size={16} /> WhatsApp
-              </button>
-              <button
-                onClick={() => setPlanChoisi(null)}
-                className="flex-1 bg-slate-100 text-slate-600 py-3 rounded-2xl font-bold text-sm"
-              >
-                Fermer
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }

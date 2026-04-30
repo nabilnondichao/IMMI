@@ -24,7 +24,6 @@ import LocataireDashboard from './pages/locataire/LocataireDashboard';
 import DepensesPage from './pages/dashboard/depenses/DepensesPage';
 import LocatairesPage from './pages/dashboard/locataires/LocatairesPage';
 import AnalyticsPage from './pages/dashboard/analytics/AnalyticsPage';
-import AbonnementPage from './pages/dashboard/abonnement/AbonnementPage';
 import ActifsPage from './pages/dashboard/actifs/ActifsPage';
 import MessagesPage from './pages/dashboard/messages/MessagesPage';
 import CommissionPage from './pages/dashboard/commission/CommissionPage';
@@ -35,6 +34,7 @@ import UnitesPublique from './pages/UnitesPublique';
 import CautionsPage from './pages/dashboard/cautions/CautionsPage';
 import GestionnairesPage from './pages/dashboard/gestionnaires/GestionnairesPage';
 import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
+// AbonnementPage retiré — modèle commission 3.5%
 
 export default function App() {
   return (
@@ -131,11 +131,6 @@ export default function App() {
         <Route path="/dashboard/actifs" element={
           <ProtectedRoute requiredRole="proprietaire">
             <AppLayout userType="proprietaire"><ActifsPage /></AppLayout>
-          </ProtectedRoute>
-        } />
-        <Route path="/dashboard/abonnement" element={
-          <ProtectedRoute requiredRole="proprietaire">
-            <AppLayout userType="proprietaire"><AbonnementPage /></AppLayout>
           </ProtectedRoute>
         } />
         <Route path="/dashboard/cautions" element={
