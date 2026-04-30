@@ -8,33 +8,35 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
-// Initialize the Supabase client
-let supabaseInstance: SupabaseClient | null = null;
+// Singleton — UNE seule instance dans toute l'app pour éviter les conflits de lock auth
+let _instance: SupabaseClient | null = null;
 
-export function getSupabase(): SupabaseClient {
-  if (!supabaseInstance) {
-    if (!supabaseUrl || !supabaseAnonKey) {
-      throw new Error('Supabase URL and Anon Key must be configured in environment variables');
-    }
-    supabaseInstance = createClient(supabaseUrl, supabaseAnonKey, {
+function createSupabase(): SupabaseClient | null {
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+  if (!_instance) {
+    _instance = createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
         detectSessionInUrl: true,
+        storageKey: 'immoafrik-auth',
+        storage: window?.localStorage,
+      },
+      global: {
+        headers: { 'x-app-name': 'immoafrik' },
       },
     });
   }
-  return supabaseInstance;
+  return _instance;
 }
 
-// Export for backwards compatibility
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-});
+export const supabase = createSupabase();
+
+// Alias pour compatibilité
+export function getSupabase(): SupabaseClient {
+  if (!_instance) throw new Error('Supabase non initialisé');
+  return _instance;
+}
 
 // Database types based on our schema
 export interface Profile {

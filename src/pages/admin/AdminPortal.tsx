@@ -86,8 +86,26 @@ export default function AdminPortal() {
   const [expandedUser, setExpandedUser] = useState<string | null>(null);
 
   useEffect(() => {
+    // 1. Vérifier session admin sauvegardée
     const saved = sessionStorage.getItem('immo_admin_session');
-    if (saved) { try { setAdminUser(JSON.parse(saved)); setPhase('dashboard'); } catch { sessionStorage.removeItem('immo_admin_session'); } }
+    if (saved) {
+      try { setAdminUser(JSON.parse(saved)); setPhase('dashboard'); return; }
+      catch { sessionStorage.removeItem('immo_admin_session'); }
+    }
+    // 2. Vérifier si une session Supabase active existe déjà pour un admin
+    if (supabase) {
+      supabase.auth.getSession().then(async ({ data: { session } }) => {
+        if (session?.user) {
+          const { data: p } = await supabase!.from('profiles').select('id,nom,prenom,email,is_super_admin,admin_role').eq('id', session.user.id).single();
+          if (p?.is_super_admin || ['super_admin','admin'].includes(p?.admin_role)) {
+            const admin = { id: p.id, email: p.email, nom: p.nom, prenom: p.prenom };
+            setAdminUser(admin);
+            sessionStorage.setItem('immo_admin_session', JSON.stringify(admin));
+            setPhase('dashboard');
+          }
+        }
+      });
+    }
   }, []);
 
   useEffect(() => { if (phase === 'dashboard') loadData(); }, [phase]);
