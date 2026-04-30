@@ -47,6 +47,11 @@ export interface Profile {
   pays: string;
   role: 'proprietaire' | 'locataire';
   is_super_admin: boolean;
+  admin_role: 'super_admin' | 'admin' | 'moderateur' | null;
+  statut: 'actif' | 'suspendu' | 'en_attente';
+  permissions: Record<string, boolean> | null;
+  admin_notes: string | null;
+  suspended_at: string | null;
   abonnement_plan: 'starter' | 'pro' | 'enterprise';
   abonnement_expiration: string | null;
   created_at: string;
