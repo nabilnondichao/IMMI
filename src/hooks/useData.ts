@@ -767,36 +767,58 @@ export function useMyLocataireProfile() {
   return { locataire: data || null, isLoading, isError: error, refresh: mutate };
 }
 
-export async function linkLocataireToUser(userId: string, proprietaireId: string, nom: string, prenom: string, telephone: string) {
+export async function linkLocataireToUser(
+  userId: string,
+  proprietaireId: string,
+  nom: string,
+  prenom: string,
+  telephone: string,
+  email?: string | null,
+  uniteId?: string | null,
+  maisonId?: string | null,
+) {
   if (!supabase) throw new Error('Supabase not configured');
-  // Chercher un locataire existant correspondant (même nom + proprio)
+
+  // Chercher un locataire existant (même nom + proprio, sans user_id encore)
   const { data: existing } = await supabase
     .from('locataires')
-    .select('id')
+    .select('id, unite_id')
     .eq('proprietaire_id', proprietaireId)
-    .eq('nom', nom)
-    .eq('prenom', prenom)
+    .ilike('nom', nom)
+    .ilike('prenom', prenom)
     .is('user_id', null)
     .maybeSingle();
 
   if (existing) {
-    // Lier le compte auth à l'enregistrement locataire existant
-    await supabase.from('locataires').update({ user_id: userId }).eq('id', existing.id);
+    const updates: Record<string, unknown> = { user_id: userId };
+    if (uniteId && !existing.unite_id) updates.unite_id = uniteId;
+    if (email) updates.email = email;
+    await supabase.from('locataires').update(updates).eq('id', existing.id);
+    if (uniteId) {
+      await supabase.from('unites').update({ statut: 'occupé' }).eq('id', uniteId);
+    }
     return existing.id;
-  } else {
-    // Créer un nouvel enregistrement locataire
-    const { data, error } = await supabase.from('locataires').insert({
-      user_id: userId,
-      proprietaire_id: proprietaireId,
-      nom,
-      prenom,
-      telephone,
-      email: null,
-      date_entree: new Date().toISOString().split('T')[0],
-    }).select().single();
-    if (error) throw error;
-    return data.id;
   }
+
+  // Créer un nouveau record locataire complet
+  const payload: Record<string, unknown> = {
+    user_id: userId,
+    proprietaire_id: proprietaireId,
+    nom, prenom, telephone,
+    email: email || null,
+    unite_id: uniteId || null,
+    date_entree: new Date().toISOString().split('T')[0],
+    photo_piece_url: null,
+    nationalite: null,
+    numero_piece_identite: null,
+  };
+  const { data, error } = await supabase.from('locataires').insert(payload).select().single();
+  if (error) throw error;
+
+  if (uniteId) {
+    await supabase.from('unites').update({ statut: 'occupé' }).eq('id', uniteId);
+  }
+  return data.id;
 }
 
 // ============================================

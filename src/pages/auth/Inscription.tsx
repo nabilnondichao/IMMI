@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
-import { linkLocataireToUser } from '../../hooks/useData';
+import { linkLocataireToUser, marquerInvitationUtilisee } from '../../hooks/useData';
 
 export default function Inscription() {
   const [activeTab, setActiveTab] = useState<'proprio' | 'locataire'>('proprio');
@@ -20,6 +20,13 @@ export default function Inscription() {
   const [proprioForm, setProprioForm] = useState({ prenom: '', nom: '', email: '', telephone: '', pays: 'Bénin', password: '' });
   const [locForm, setLocForm] = useState({ prenom: '', nom: '', email: '', telephone: '', password: '', codeProprietaire: '' });
   const [ownerFound, setOwnerFound] = useState<{ id: string; nom: string; prenom: string } | null>(null);
+  const [invitationInfo, setInvitationInfo] = useState<{
+    uniteId: string | null;
+    maisonId: string | null;
+    uniteNom: string | null;
+    maisonNom: string | null;
+    invitationCode: string | null;
+  } | null>(null);
   const [codeVerified, setCodeVerified] = useState(false);
   const [codeLoading, setCodeLoading] = useState(false);
 
@@ -30,17 +37,57 @@ export default function Inscription() {
   }, [user, profile, authLoading, navigate]);
 
   async function verifierCode(code: string) {
-    if (code.length < 4) { setOwnerFound(null); setCodeVerified(false); return; }
+    if (code.length < 4) { setOwnerFound(null); setInvitationInfo(null); setCodeVerified(false); return; }
     setCodeLoading(true);
+    const upper = code.toUpperCase().trim();
     try {
+      // 1. Essayer comme code d'invitation (INV-XXXXXX) — contient proprio + maison + chambre
+      if (upper.startsWith('INV-')) {
+        const { data: inv } = await supabase!
+          .from('invitations')
+          .select('*, unites(id, nom, maison_id, maisons(id, nom)), profiles(id, nom, prenom)')
+          .eq('code', upper)
+          .eq('statut', 'en_attente')
+          .maybeSingle();
+
+        if (inv) {
+          const proprio = inv.profiles as any;
+          const unite = inv.unites as any;
+          const maison = unite?.maisons as any;
+          setOwnerFound({ id: inv.proprietaire_id, nom: proprio?.nom || '', prenom: proprio?.prenom || '' });
+          setInvitationInfo({
+            uniteId: unite?.id || inv.unite_id,
+            maisonId: maison?.id || unite?.maison_id,
+            uniteNom: unite?.nom || null,
+            maisonNom: maison?.nom || null,
+            invitationCode: upper,
+          });
+          // Pré-remplir le formulaire si données dans l'invitation
+          if (inv.locataire_prenom) setLocForm(f => ({ ...f, prenom: inv.locataire_prenom || '' }));
+          if (inv.locataire_nom) setLocForm(f => ({ ...f, nom: inv.locataire_nom || '' }));
+          if (inv.locataire_telephone) setLocForm(f => ({ ...f, telephone: inv.locataire_telephone || '' }));
+          setCodeVerified(true);
+          return;
+        } else {
+          setOwnerFound(null); setInvitationInfo(null); setCodeVerified(false); return;
+        }
+      }
+
+      // 2. Code propriétaire général (IMMO-XXXX) — lie au proprio seulement
       const { data } = await supabase!
         .from('profiles')
         .select('id, nom, prenom')
-        .eq('code_unique', code.toUpperCase().trim())
+        .eq('code_unique', upper)
         .eq('role', 'proprietaire')
         .maybeSingle();
-      if (data) { setOwnerFound(data); setCodeVerified(true); }
-      else { setOwnerFound(null); setCodeVerified(false); }
+
+      if (data) {
+        setOwnerFound(data);
+        setInvitationInfo(null); // pas d'unité spécifique
+        setCodeVerified(true);
+      } else {
+        setOwnerFound(null); setInvitationInfo(null); setCodeVerified(false);
+      }
     } finally { setCodeLoading(false); }
   }
 
@@ -58,7 +105,7 @@ export default function Inscription() {
 
   async function handleLocataireSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!ownerFound) { setError('Code propriétaire invalide. Vérifiez le code.'); return; }
+    if (!ownerFound) { setError('Code invalide. Vérifiez le code fourni par votre propriétaire.'); return; }
     if (locForm.password.length < 6) { setError('Le mot de passe doit contenir au moins 6 caractères.'); return; }
     setIsLoading(true); setError(null);
     try {
@@ -69,7 +116,20 @@ export default function Inscription() {
       await new Promise(r => setTimeout(r, 1200));
       const { data: { user: newUser } } = await supabase!.auth.getUser();
       if (newUser) {
-        await linkLocataireToUser(newUser.id, ownerFound.id, locForm.nom, locForm.prenom, locForm.telephone);
+        await linkLocataireToUser(
+          newUser.id,
+          ownerFound.id,
+          locForm.nom,
+          locForm.prenom,
+          locForm.telephone,
+          locForm.email,
+          invitationInfo?.uniteId ?? null,
+          invitationInfo?.maisonId ?? null,
+        );
+        // Marquer l'invitation comme utilisée
+        if (invitationInfo?.invitationCode) {
+          await marquerInvitationUtilisee(invitationInfo.invitationCode);
+        }
       }
       setStep(2);
     } catch (err: unknown) {
@@ -228,14 +288,27 @@ export default function Inscription() {
                   </div>
                 </div>
                 {ownerFound && (
-                  <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2">
-                    <Check size={12} /> Propriétaire trouvé : <strong>{ownerFound.prenom} {ownerFound.nom}</strong>
+                  <div className="space-y-1 mt-1">
+                    <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 rounded-xl px-3 py-2">
+                      <Check size={12} /> Propriétaire : <strong>{ownerFound.prenom} {ownerFound.nom}</strong>
+                    </div>
+                    {invitationInfo?.uniteNom && (
+                      <div className="flex items-center gap-2 text-xs text-blue-700 bg-blue-50 rounded-xl px-3 py-2">
+                        <Check size={12} />
+                        <span>Logement : <strong>{invitationInfo.uniteNom}</strong>{invitationInfo.maisonNom ? ` — ${invitationInfo.maisonNom}` : ''}</span>
+                      </div>
+                    )}
+                    {!invitationInfo && (
+                      <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-xl px-3 py-2">
+                        <span>⚠ Code général — votre propriétaire vous assignera votre chambre après connexion.</span>
+                      </div>
+                    )}
                   </div>
                 )}
                 {!codeVerified && locForm.codeProprietaire.length > 5 && !codeLoading && (
-                  <p className="text-xs text-red-500 px-1">Code introuvable. Demandez le bon code à votre propriétaire.</p>
+                  <p className="text-xs text-red-500 px-1">Code introuvable. Utilisez le code d'invitation (INV-...) ou le code propriétaire (IMMO-...).</p>
                 )}
-                <p className="text-[10px] text-slate-400 italic">Code fourni par votre propriétaire (format IMMO-XXXX)</p>
+                <p className="text-[10px] text-slate-400 italic">Code d'invitation (INV-XXXXXX) remis par votre propriétaire</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
