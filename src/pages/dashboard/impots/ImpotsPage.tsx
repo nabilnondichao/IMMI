@@ -1,420 +1,187 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import React, { useMemo, useState } from 'react';
+import { Calculator, TrendingUp, AlertTriangle, Loader2, BarChart3 } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { usePaiements, useDepenses, useMaisons, useAllUnites } from '@/hooks/useData';
+import { useAuth } from '@/contexts/AuthContext';
+import { getPaysConfig } from '@/lib/countries';
 
-import React, { useState, useMemo } from 'react';
-import { 
-  Calculator, 
-  Globe, 
-  Calendar, 
-  ArrowUpRight, 
-  ArrowDownRight, 
-  FileText, 
-  ShieldCheck, 
-  AlertTriangle, 
-  Download, 
-  FileSpreadsheet,
-  History,
-  Info,
-  TrendingUp,
-  Receipt,
-  Search,
-  Bell
-} from 'lucide-react';
-import { 
-  Card, 
-  CardContent, 
-  CardHeader, 
-  CardTitle,
-  CardDescription
-} from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { 
-  Table, 
-  TableBody, 
-  TableCell, 
-  TableHead, 
-  TableHeader, 
-  TableRow 
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  Tooltip, 
-  Legend,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid
-} from 'recharts';
-import { PAIEMENTS, DEPENSES, PROPRIETAIRES } from '@/lib/mock-data';
-import { StatutPaiement } from '@/types/immoafrik';
-
-interface TaxRule {
-  country: string;
-  rate: number;
-  description: string;
-}
-
-const TAX_RULES: Record<string, TaxRule> = {
-  'Benin': { country: 'Bénin', rate: 0.10, description: 'Taxe foncière : 10% des revenus locatifs nets.' },
-  'IvoryCoast': { country: 'Côte d\'Ivoire', rate: 0.15, description: 'Impôt foncier : environ 15% sur le revenu net après abattement.' },
-  'Senegal': { country: 'Sénégal', rate: 0.12, description: 'Retenue sur loyer : 12% du montant brut.' },
-  'Mali': { country: 'Mali', rate: 0.10, description: 'Impôt foncier simplifié : 10%.' },
-  'Togo': { country: 'Togo', rate: 0.08, description: 'Taxes municipales et foncières : ~8%.' },
-  'Cameroon': { country: 'Cameroun', rate: 0.15, description: 'Impôt sur le revenu foncier : 15%.' },
-  'Other': { country: 'Autre', rate: 0.10, description: 'Configuration personnalisée.' }
+const TAUX_IMPOTS: Record<string, { taux: number; nom: string; abattement: number }> = {
+  'Bénin':         { taux: 15, nom: 'Taxe Foncière (TF)',                              abattement: 30 },
+  "Côte d'Ivoire": { taux: 18, nom: 'Impôt Foncier (IF)',                              abattement: 25 },
+  'Sénégal':       { taux: 20, nom: 'Contribution Foncière des Propriétés Bâties',     abattement: 40 },
+  'Togo':          { taux: 15, nom: 'Taxe Foncière Unique (TFU)',                      abattement: 30 },
+  'Burkina Faso':  { taux: 16, nom: 'Contribution du Secteur Immobilier',              abattement: 25 },
+  'Mali':          { taux: 15, nom: 'Impôt sur les Revenus Fonciers',                  abattement: 30 },
+  'Niger':         { taux: 14, nom: 'Taxe sur les Revenus Immobiliers',                abattement: 20 },
+  'Ghana':         { taux: 8,  nom: 'Property Rate',                                   abattement: 0  },
+  'Nigeria':       { taux: 10, nom: 'Tenement Rate / Income Tax',                      abattement: 20 },
 };
 
-const MONTHS = [
-  'Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-  'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'
-];
+const MOIS = ['Jan','Fév','Mar','Avr','Mai','Jun','Jul','Aoû','Sep','Oct','Nov','Déc'];
+const COLORS = ['#B8860B','#1A1A2E','#10B981','#3B82F6','#EF4444','#8B5CF6'];
 
 export default function ImpotsPage() {
-  const [selectedCountry, setSelectedCountry] = useState('Benin');
-  const [selectedYear, setSelectedYear] = useState('2024');
-  const [customRate, setCustomRate] = useState<string>('');
+  const { profile } = useAuth();
+  const now = new Date();
+  const [year, setYear] = useState(now.getFullYear());
+  const { paiements, isLoading: pLoad } = usePaiements({});
+  const { depenses, isLoading: dLoad } = useDepenses();
+  const { maisons } = useMaisons();
+  const { unites } = useAllUnites();
 
-  const currentRule = TAX_RULES[selectedCountry];
-  const activeRate = customRate ? parseFloat(customRate) / 100 : currentRule.rate;
+  const pays = profile?.pays || 'Bénin';
+  const conf = getPaysConfig(pays);
+  const fisc = TAUX_IMPOTS[pays] ?? TAUX_IMPOTS['Bénin'];
 
-  // --- DATA CALCULATIONS ---
-  const monthlyData = useMemo(() => {
-    return MONTHS.map((month, index) => {
-      const monthIndex = index + 1;
-      
-      // Filter payments for this month
-      const grossIncome = PAIEMENTS
-        .filter(p => p.annee === parseInt(selectedYear) && p.mois === monthIndex && p.statut === StatutPaiement.PAYE)
-        .reduce((sum, p) => sum + p.montant, 0);
-      
-      // Filter expenses for this month
-      const monthExpenses = DEPENSES
-        .filter(d => {
-          const dDate = new Date(d.date_depense);
-          return dDate.getFullYear() === parseInt(selectedYear) && (dDate.getMonth() + 1) === monthIndex;
-        })
-        .reduce((sum, d) => sum + d.montant, 0);
-      
-      const netIncome = Math.max(0, grossIncome - monthExpenses);
-      const estimatedTax = netIncome * activeRate;
-      
-      return {
-        month,
-        grossIncome,
-        expenses: monthExpenses,
-        netIncome,
-        estimatedTax
-      };
-    });
-  }, [selectedYear, activeRate]);
+  const revenusBruts = useMemo(() =>
+    paiements.filter(p => p.statut === 'payé' && p.annee === year).reduce((s, p) => s + p.montant, 0),
+    [paiements, year]);
 
-  const totals = useMemo(() => {
-    return monthlyData.reduce((acc, m) => ({
-      gross: acc.gross + m.grossIncome,
-      expenses: acc.expenses + m.expenses,
-      net: acc.net + m.netIncome,
-      tax: acc.tax + m.estimatedTax
-    }), { gross: 0, expenses: 0, net: 0, tax: 0 });
-  }, [monthlyData]);
+  const depTotal = useMemo(() =>
+    depenses.filter(d => new Date(d.date_depense).getFullYear() === year).reduce((s, d) => s + d.montant, 0),
+    [depenses, year]);
 
-  const pieData = [
-    { name: 'Revenu Net', value: totals.net - totals.tax, color: '#1A1A2E' },
-    { name: 'Charges', value: totals.expenses, color: '#94A3B8' },
-    { name: 'Impôts Estimés', value: totals.tax, color: '#B8860B' }
-  ];
+  const base = Math.max(0, revenusBruts * (1 - fisc.abattement / 100) - depTotal);
+  const impot = Math.round(base * fisc.taux / 100);
+  const net = revenusBruts - depTotal - impot;
+  const tauxEff = revenusBruts > 0 ? ((impot / revenusBruts) * 100).toFixed(1) : '0';
+
+  const mensuel = useMemo(() => MOIS.map((nom, i) => {
+    const m = i + 1;
+    const rev = paiements.filter(p => p.statut === 'payé' && p.annee === year && p.mois === m).reduce((s, p) => s + p.montant, 0);
+    const dep = depenses.filter(d => { const dd = new Date(d.date_depense); return dd.getFullYear() === year && dd.getMonth() + 1 === m; }).reduce((s, d) => s + d.montant, 0);
+    const imp = Math.round(Math.max(0, rev * (1 - fisc.abattement / 100) - dep) * fisc.taux / 100);
+    return { nom, revenus: rev, depenses: dep, impot: imp };
+  }), [paiements, depenses, year, fisc]);
+
+  const parMaison = useMemo(() => maisons.map(m => {
+    const ids = unites.filter(u => u.maison_id === m.id).map(u => u.id);
+    const val = paiements.filter(p => p.statut === 'payé' && p.annee === year && ids.includes(p.unite_id)).reduce((s, p) => s + p.montant, 0);
+    return { nom: m.nom, value: val };
+  }).filter(m => m.value > 0), [maisons, unites, paiements, year]);
+
+  if (pLoad || dLoad) return <div className="flex items-center justify-center h-64"><Loader2 className="animate-spin text-[#B8860B]" size={40} /></div>;
+
+  const years = [now.getFullYear() - 2, now.getFullYear() - 1, now.getFullYear()];
 
   return (
-    <div className="p-8 pb-32 lg:pb-8 max-w-7xl mx-auto">
-      {/* HEADER */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
+    <div className="p-6 md:p-8 pb-32 lg:pb-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-3xl font-black text-[#1A1A2E] tracking-tight flex items-center gap-3">
-            Bilan Fiscal & Impôts
-            <Calculator className="text-[#B8860B]" size={28} />
-          </h1>
-          <p className="text-sm text-slate-500 font-medium">Gestion proactive de votre fiscalité immobilière</p>
+          <h1 className="text-2xl font-black text-[#1A1A2E]">Impôts & Fiscalité</h1>
+          <p className="text-sm text-slate-500">{conf.flag} {pays} · {fisc.nom} · {fisc.taux}% (abattement {fisc.abattement}%)</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="rounded-xl border-slate-200 font-bold text-xs h-11 flex items-center gap-2">
-            <Download size={18} /> Exporter PDF
-          </Button>
-          <Button className="bg-[#1A1A2E] text-white font-black rounded-xl text-xs h-11 flex items-center gap-2 px-6">
-            <FileSpreadsheet size={18} /> Dossier Fiscal
-          </Button>
+        <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+          <SelectTrigger className="w-28 rounded-xl font-bold"><SelectValue /></SelectTrigger>
+          <SelectContent>{years.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}</SelectContent>
+        </Select>
+      </div>
+
+      {/* KPIs */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        {[
+          { l: 'Revenus bruts', v: revenusBruts, c: 'text-blue-600' },
+          { l: 'Dépenses déductibles', v: depTotal, c: 'text-amber-600' },
+          { l: `Impôt estimé (${fisc.taux}%)`, v: impot, c: 'text-red-600' },
+          { l: 'Revenus nets', v: net, c: 'text-green-600' },
+        ].map((k, i) => (
+          <Card key={i} className="rounded-3xl border-slate-100 shadow-sm">
+            <CardContent className="p-5">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{k.l}</p>
+              <h3 className={`text-xl font-black ${k.c}`}>{k.v.toLocaleString('fr-FR')}</h3>
+              <p className="text-[10px] text-slate-400">{conf.symbole}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Bilan fiscal */}
+      <div className="bg-[#1A1A2E] rounded-[2rem] p-6 mb-8 grid md:grid-cols-3 gap-6 text-white">
+        <div className="col-span-2 space-y-3">
+          <div className="flex items-center gap-2 mb-4">
+            <Calculator size={20} className="text-[#B8860B]" />
+            <h2 className="font-black text-lg">Calcul fiscal {year}</h2>
+          </div>
+          {[
+            { l: 'Revenus bruts locatifs', v: revenusBruts },
+            { l: `Abattement forfaitaire (${fisc.abattement}%)`, v: -Math.round(revenusBruts * fisc.abattement / 100) },
+            { l: 'Charges déductibles', v: -depTotal },
+            { l: 'Base imposable', v: base, bold: true },
+            { l: `${fisc.nom} (${fisc.taux}%)`, v: -impot, bold: true, gold: true },
+          ].map((r, i) => (
+            <div key={i} className={`flex justify-between py-2 ${i > 0 ? 'border-t border-white/10' : ''}`}>
+              <span className={`${r.bold ? 'font-black' : 'text-slate-400'} text-sm`}>{r.l}</span>
+              <span className={`font-black text-sm ${r.gold ? 'text-[#B8860B]' : r.v < 0 ? 'text-red-400' : 'text-white'}`}>
+                {r.v < 0 ? '-' : ''}{Math.abs(r.v).toLocaleString('fr-FR')} {conf.symbole}
+              </span>
+            </div>
+          ))}
+        </div>
+        <div className="flex flex-col justify-center items-center bg-white/5 rounded-2xl p-6 text-center">
+          <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Taux effectif</p>
+          <p className="text-5xl font-black text-[#B8860B]">{tauxEff}<span className="text-2xl">%</span></p>
+          <div className="mt-4 p-3 bg-green-500/10 rounded-xl w-full">
+            <p className="text-xs font-black text-green-400">Revenu net</p>
+            <p className="text-lg font-black text-green-400">{net.toLocaleString('fr-FR')} {conf.symbole}</p>
+          </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        
-        {/* LEFT COLUMN: SETTINGS & SUMMARY */}
-        <div className="space-y-8">
-          
-          {/* SECTION 1: CONFIGURATION */}
-          <Card className="rounded-[2.5rem] border-slate-100 shadow-sm overflow-hidden">
-            <CardHeader className="bg-slate-50/50 pb-6">
-              <CardTitle className="text-lg font-black flex items-center gap-2">
-                <Globe size={20} className="text-[#B8860B]" />
-                Paramètres Fiscaux
-              </CardTitle>
-              <CardDescription>Sélectionnez votre pays pour les taux par défaut.</CardDescription>
-            </CardHeader>
-            <CardContent className="pt-6 space-y-4">
-              <div className="space-y-2">
-                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pays de résidence fiscale</Label>
-                <Select value={selectedCountry} onValueChange={setSelectedCountry}>
-                  <SelectTrigger className="rounded-2xl h-12 bg-white border-slate-100 font-bold">
-                    <SelectValue placeholder="Choisir un pays" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.entries(TAX_RULES).map(([key, rule]) => (
-                      <SelectItem key={key} value={key}>{rule.country}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {selectedCountry === 'Other' && (
-                <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
-                  <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Taux personnalisé (%)</Label>
-                  <Input 
-                    type="number" 
-                    placeholder="Ex: 12" 
-                    className="rounded-2xl h-12"
-                    value={customRate}
-                    onChange={(e) => setCustomRate(e.target.value)}
-                  />
-                </div>
-              )}
-
-              <div className="p-4 bg-blue-50 rounded-2xl border border-blue-100 flex items-start gap-3">
-                <Info size={16} className="text-blue-600 shrink-0 mt-0.5" />
-                <p className="text-[10px] text-blue-800 font-medium leading-relaxed">
-                  {currentRule.description}
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* SECTION 3: PREPARED DECLARATION */}
-          <Card className="rounded-[2.5rem] border-slate-100 shadow-sm bg-[#1A1A2E] text-white overflow-hidden">
-            <CardHeader>
-              <CardTitle className="text-lg font-black flex items-center gap-2">
-                <ShieldCheck size={20} className="text-[#B8860B]" />
-                Résumé Declaration {selectedYear}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-4">
-                <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Revenu Brut</span>
-                  <span className="text-lg font-black tracking-tight">{totals.gross.toLocaleString()} FCFA</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Charges Déductibles</span>
-                  <span className="text-lg font-black tracking-tight text-red-300">-{totals.expenses.toLocaleString()} FCFA</span>
-                </div>
-                <div className="flex justify-between items-center border-b border-white/10 pb-3">
-                  <span className="text-xs text-slate-400 font-bold uppercase tracking-wider">Base Imposable (Net)</span>
-                  <span className="text-lg font-black tracking-tight text-[#B8860B]">{totals.net.toLocaleString()} FCFA</span>
-                </div>
-                <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl">
-                  <span className="text-xs text-amber-400 font-black uppercase tracking-widest">Impôt Estimé</span>
-                  <span className="text-2xl font-black tracking-tighter text-amber-400">{Math.round(totals.tax).toLocaleString()} FCFA</span>
-                </div>
-              </div>
-
-              <div className="p-4 bg-white/5 rounded-2xl flex items-center gap-3">
-                <AlertTriangle size={18} className="text-amber-500 shrink-0" />
-                <p className="text-[9px] text-slate-400 italic">
-                  Ces estimations sont indicatives. Consultez un expert-comptable pour valider vos déclarations.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* SECTION 5: ALERTS */}
-          <Card className="rounded-[2.5rem] border-slate-100 shadow-sm">
-            <CardHeader>
-              <CardTitle className="text-lg font-black flex items-center gap-2">
-                <Bell size={20} className="text-red-500" />
-                Échéances & Alertes
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              <div className="flex items-center gap-3 p-3 bg-red-50 rounded-2xl border border-red-100">
-                <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600">
-                  <Calendar size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-red-900">Déclaration Annuelle</p>
-                  <p className="text-[10px] text-red-700">À déposer avant le 30 Avril</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3 p-3 bg-blue-50 rounded-2xl border border-blue-100 opacity-60">
-                <div className="w-10 h-10 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600">
-                  <TrendingUp size={20} />
-                </div>
-                <div>
-                  <p className="text-xs font-black text-blue-900">Seuil de Revenu</p>
-                  <p className="text-[10px] text-blue-700">75% du plafond atteint</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* RIGHT COLUMN: DATA TABLE & CHARTS */}
-        <div className="lg:col-span-2 space-y-8">
-          
-          {/* SECTION 2: BILAN ANNUEL */}
-          <Card className="rounded-[2.5rem] border-slate-100 shadow-sm overflow-hidden">
-            <CardHeader className="flex flex-row items-center justify-between pb-6">
-              <div>
-                <CardTitle className="text-xl font-black tracking-tight">Détail du Bilan {selectedYear}</CardTitle>
-                <CardDescription>Flux financiers mensuels et calcul fiscal automatique.</CardDescription>
-              </div>
-              <div className="w-32">
-                 <Select value={selectedYear} onValueChange={setSelectedYear}>
-                   <SelectTrigger className="rounded-xl h-10 bg-slate-50 border-none font-bold">
-                     <SelectValue />
-                   </SelectTrigger>
-                   <SelectContent>
-                     <SelectItem value="2024">2024</SelectItem>
-                     <SelectItem value="2023">2023</SelectItem>
-                   </SelectContent>
-                 </Select>
-              </div>
-            </CardHeader>
+      {/* Graphiques */}
+      <Tabs defaultValue="mensuel">
+        <TabsList className="mb-6">
+          <TabsTrigger value="mensuel"><BarChart3 size={14} className="mr-1" />Mensuel</TabsTrigger>
+          <TabsTrigger value="maisons"><TrendingUp size={14} className="mr-1" />Par maison</TabsTrigger>
+        </TabsList>
+        <TabsContent value="mensuel">
+          <Card className="rounded-[2rem] border-slate-100 shadow-sm">
+            <CardHeader><CardTitle className="font-black text-[#1A1A2E] text-base">Revenus / Dépenses / Impôt par mois — {year}</CardTitle></CardHeader>
             <CardContent>
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow className="bg-slate-50/50 border-none">
-                      <TableHead className="rounded-l-2xl text-[10px] font-black uppercase tracking-widest text-slate-400">Mois</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Brut</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400 text-center">Charges</TableHead>
-                      <TableHead className="text-[10px] font-black uppercase tracking-widest text-slate-400">Revenu Net</TableHead>
-                      <TableHead className="rounded-r-2xl text-[10px] font-black uppercase tracking-widest text-[#B8860B]">Impôt Est.</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {monthlyData.filter(d => d.grossIncome > 0 || d.expenses > 0).map((row, i) => (
-                      <TableRow key={row.month} className="border-slate-50 hover:bg-slate-50 transition-colors">
-                        <TableCell className="font-bold text-[#1A1A2E] py-4">{row.month}</TableCell>
-                        <TableCell className="font-black text-slate-600 text-xs">{row.grossIncome.toLocaleString()}</TableCell>
-                        <TableCell className="text-center">
-                           <Badge className="bg-slate-100 text-slate-400 border-none px-2 rounded-lg font-bold text-[10px]">
-                             {row.expenses.toLocaleString()}
-                           </Badge>
-                        </TableCell>
-                        <TableCell className="font-black text-[#1A1A2E] text-xs">{(row.netIncome).toLocaleString()}</TableCell>
-                        <TableCell className="font-black text-[#B8860B] text-xs">{Math.round(row.estimatedTax).toLocaleString()}</TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={mensuel}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F5F9" />
+                    <XAxis dataKey="nom" axisLine={false} tickLine={false} tick={{ fontSize: 11, fontWeight: 700, fill: '#94A3B8' }} />
+                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94A3B8' }} tickFormatter={v => v >= 1000 ? `${(v/1000).toFixed(0)}K` : String(v)} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: 'none' }} formatter={(v: number) => [`${v.toLocaleString('fr-FR')} ${conf.symbole}`]} />
+                    <Bar dataKey="revenus" name="Revenus" fill="#B8860B" radius={[4,4,0,0]} />
+                    <Bar dataKey="depenses" name="Dépenses" fill="#1A1A2E" radius={[4,4,0,0]} />
+                    <Bar dataKey="impot" name="Impôt" fill="#EF4444" radius={[4,4,0,0]} />
+                  </BarChart>
+                </ResponsiveContainer>
               </div>
-
-              {/* VISUALIZATION */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-12 py-8 border-t border-slate-50">
-                <div className="h-[250px]">
-                  <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6 text-center">Distribution Annuelle</p>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        <TabsContent value="maisons">
+          <Card className="rounded-[2rem] border-slate-100 shadow-sm">
+            <CardHeader><CardTitle className="font-black text-[#1A1A2E] text-base">Revenus par propriété — {year}</CardTitle></CardHeader>
+            <CardContent>
+              {parMaison.length === 0 ? (
+                <div className="h-48 flex items-center justify-center text-slate-400 italic text-sm">Aucun paiement confirmé pour {year}.</div>
+              ) : (
+                <div className="h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie
-                        data={pieData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {pieData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
+                      <Pie data={parMaison} cx="50%" cy="50%" outerRadius={110} dataKey="value" label={({ nom, percent }) => `${nom} ${(percent * 100).toFixed(0)}%`}>
+                        {parMaison.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                       </Pie>
-                      <Tooltip 
-                        contentStyle={{ borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgb(0 0 0 / 0.1)', fontWeight: 'bold' }}
-                      />
-                      <Legend verticalAlign="bottom" height={36}/>
+                      <Tooltip formatter={(v: number) => [`${v.toLocaleString('fr-FR')} ${conf.symbole}`]} />
                     </PieChart>
                   </ResponsiveContainer>
                 </div>
-
-                <div className="h-[250px]">
-                   <p className="text-xs font-black uppercase tracking-widest text-slate-400 mb-6 text-center">Performance Revenus vs Impôts</p>
-                   <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={monthlyData.filter(d => d.grossIncome > 0)}>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                      <XAxis dataKey="month" hide />
-                      <YAxis hide />
-                      <Tooltip cursor={{ fill: 'transparent' }} contentStyle={{ borderRadius: '16px', fontWeight: 'bold' }} />
-                      <Bar dataKey="grossIncome" name="Revenu Brut" fill="#1A1A2E" radius={[4, 4, 0, 0]} />
-                      <Bar dataKey="estimatedTax" name="Impôt" fill="#B8860B" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                   </ResponsiveContainer>
-                </div>
-              </div>
+              )}
             </CardContent>
           </Card>
+        </TabsContent>
+      </Tabs>
 
-          {/* SECTION 4: ARCHIVES */}
-          <Card className="rounded-[2.5rem] border-slate-100 shadow-sm overflow-hidden">
-             <CardHeader>
-               <CardTitle className="text-lg font-black flex items-center gap-2">
-                 <History size={20} className="text-slate-400" />
-                 Archives Fiscales
-               </CardTitle>
-               <CardDescription>Historique des exports et documents officiels.</CardDescription>
-             </CardHeader>
-             <CardContent>
-               <div className="space-y-3">
-                 {[
-                   { name: 'Dossier Fiscal 2023.pdf', date: '15 Mars 2024', size: '2.4 MB', label: 'OFFICIEL' },
-                   { name: 'Justificatifs_Reparations_Q3.zip', date: '10 Jan 2024', size: '12.1 MB', label: 'PIÈCES' },
-                   { name: 'Declaration_Provisoire_2024.xlsx', date: 'Il y a 2 jours', size: '156 KB', label: 'BROUILLON' }
-                 ].map((doc, i) => (
-                   <div key={i} className="flex items-center justify-between p-4 bg-slate-50/50 rounded-2xl group hover:bg-slate-50 transition-all cursor-pointer">
-                     <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-slate-100 flex items-center justify-center text-slate-400 group-hover:text-[#1A1A2E] transition-colors">
-                          <FileText size={20} />
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-slate-700">{doc.name}</p>
-                          <p className="text-[10px] text-slate-400 font-medium">Généré le {doc.date} • {doc.size}</p>
-                        </div>
-                     </div>
-                     <Badge variant="outline" className="text-[9px] font-black tracking-widest border-slate-200">
-                       {doc.label}
-                     </Badge>
-                   </div>
-                 ))}
-               </div>
-               <Button variant="ghost" className="w-full mt-6 text-slate-400 text-xs font-bold hover:bg-slate-50 rounded-xl py-6">
-                 Charger d'autres documents
-               </Button>
-             </CardContent>
-          </Card>
-
-        </div>
+      <div className="mt-6 p-4 bg-amber-50 border border-amber-100 rounded-2xl flex items-start gap-3">
+        <AlertTriangle size={16} className="text-amber-600 shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-700">Estimations indicatives. Consultez un expert-comptable pour votre déclaration fiscale officielle.</p>
       </div>
     </div>
   );

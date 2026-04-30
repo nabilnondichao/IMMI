@@ -5,27 +5,11 @@
 
 import React, { useState, useEffect } from 'react';
 import {
-  LayoutDashboard,
-  Home,
-  Receipt,
-  FileText,
-  CreditCard,
-  BarChart3,
-  Menu,
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  Bell,
-  Wallet,
-  BellRing,
-  Users,
-  TrendingUp,
-  Landmark,
-  MessageCircle,
-  Percent,
-  Shield,
-  UserCog,
-  ShieldCheck
+  LayoutDashboard, Home, Receipt, FileText, CreditCard,
+  BarChart3, Menu, LogOut, ChevronLeft, ChevronRight,
+  Bell, Wallet, BellRing, Users, TrendingUp, Landmark,
+  MessageCircle, Percent, Shield, UserCog, ShieldCheck,
+  Calendar, ClipboardList
 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'motion/react';
@@ -84,6 +68,8 @@ export default function AppLayout({ children, userType }: AppLayoutProps) {
     { icon: <Wallet size={20} />, label: 'MoMo', path: '/dashboard/momo' },
     { icon: <MessageCircle size={20} />, label: 'Messages WA', path: '/dashboard/messages' },
     { icon: <Percent size={20} />, label: 'Commission', path: '/dashboard/commission' },
+    { icon: <Calendar size={20} />, label: 'Réservations', path: '/dashboard/reservations' },
+    { icon: <ClipboardList size={20} />, label: 'États des lieux', path: '/dashboard/etats-lieux' },
     { icon: <Shield size={20} />, label: 'Cautions', path: '/dashboard/cautions' },
     { icon: <UserCog size={20} />, label: 'Gestionnaires', path: '/dashboard/gestionnaires' },
     { icon: <BellRing size={20} />, label: 'Alertes', path: '/dashboard/alertes' },

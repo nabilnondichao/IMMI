@@ -34,7 +34,8 @@ import UnitesPublique from './pages/UnitesPublique';
 import CautionsPage from './pages/dashboard/cautions/CautionsPage';
 import GestionnairesPage from './pages/dashboard/gestionnaires/GestionnairesPage';
 import SuperAdminDashboard from './pages/admin/SuperAdminDashboard';
-// AbonnementPage retiré — modèle commission 3.5%
+import ReservationsPage from './pages/dashboard/reservations/ReservationsPage';
+import EtatsDesLieuxPage from './pages/dashboard/etats_lieux/EtatsDesLieuxPage';
 
 export default function App() {
   return (
@@ -146,6 +147,16 @@ export default function App() {
         <Route path="/admin" element={
           <ProtectedRoute requiredRole="proprietaire" requireAdmin>
             <AppLayout userType="proprietaire"><SuperAdminDashboard /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/reservations" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><ReservationsPage /></AppLayout>
+          </ProtectedRoute>
+        } />
+        <Route path="/dashboard/etats-lieux" element={
+          <ProtectedRoute requiredRole="proprietaire">
+            <AppLayout userType="proprietaire"><EtatsDesLieuxPage /></AppLayout>
           </ProtectedRoute>
         } />
         
