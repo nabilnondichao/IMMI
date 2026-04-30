@@ -11,13 +11,7 @@ import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMyLocataireProfile, useMaisons, useAllUnites, useMomoConfigs, createPaiement } from '@/hooks/useData';
 import { supabase } from '@/lib/supabase';
-
-const OPERATEURS = [
-  { id: 'MTN', label: 'MTN MoMo', color: 'bg-yellow-400', textColor: 'text-yellow-900' },
-  { id: 'Orange', label: 'Orange Money', color: 'bg-orange-500', textColor: 'text-white' },
-  { id: 'Wave', label: 'Wave', color: 'bg-blue-500', textColor: 'text-white' },
-  { id: 'Moov', label: 'Moov Africa', color: 'bg-blue-700', textColor: 'text-white' },
-];
+import { getPaysConfig } from '@/lib/countries';
 
 const MOIS_NOMS = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
 
@@ -40,6 +34,12 @@ export default function PayerPage() {
   const unite = unites.find(u => u.id === locataire?.unite_id);
   const maison = maisons.find(m => m.id === unite?.maison_id);
   const montant = unite?.loyer_mensuel || 0;
+
+  // Opérateurs disponibles selon le pays de la maison
+  const paysConfig = getPaysConfig(maison?.pays || 'Bénin');
+  const OPERATEURS = paysConfig.operateurs.map(op => ({
+    id: op.id, label: op.label, color: op.color, textColor: 'text-white'
+  }));
   const currentMonth = new Date().getMonth() + 1;
   const currentYear = new Date().getFullYear();
 

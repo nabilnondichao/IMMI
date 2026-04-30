@@ -1,16 +1,23 @@
-import { Building2, ShieldCheck, Wallet, History, Users, ArrowRight, LayoutDashboard, Menu, X } from 'lucide-react';
+import { Building2, ShieldCheck, Wallet, History, Users, ArrowRight, LayoutDashboard, Menu, X, Globe } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+
+const PAYS_COUVERTS = [
+  '🇧🇯 Bénin', "🇨🇮 Côte d'Ivoire", '🇸🇳 Sénégal', '🇹🇬 Togo',
+  '🇧🇫 Burkina Faso', '🇲🇱 Mali', '🇳🇪 Niger', '🇬🇳 Guinée',
+  '🇬🇭 Ghana', '🇳🇬 Nigeria', '🇸🇱 Sierra Leone', '🇱🇷 Liberia',
+  '🇬🇲 Gambie', '🇬🇼 Guinée-Bissau', '🇲🇷 Mauritanie', '🇨🇻 Cap-Vert',
+];
 
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   const stats = [
     { label: 'Propriétaires', value: '500+' },
-    { label: 'Pays', value: '8' },
+    { label: 'Pays couverts', value: '16' },
     { label: 'Unités gérées', value: '50k+' },
-    { label: 'FCFA collectés', value: '2B+' },
+    { label: 'Revenus gérés', value: '2B+' },
   ];
 
   const features = [
@@ -84,7 +91,7 @@ export default function LandingPage() {
               <span className="text-[#B8860B]">immobilier</span> depuis un seul endroit.
             </h1>
             <p className="text-lg text-slate-400 mb-8 max-w-lg">
-              La première plateforme de gestion locative pensée exclusivement pour le marché immobilier en Afrique. Centralisez loyers, contrats et maintenance.
+              La plateforme de gestion locative pour l'Afrique de l'Ouest. Bénin, Sénégal, Côte d'Ivoire, Ghana, Nigeria et 11 autres pays. Loyers, Mobile Money, contrats — tout en un.
             </p>
             <div className="flex flex-wrap gap-4">
               <Link to="/auth/inscription" className="px-8 py-4 bg-[#B8860B] rounded-xl font-bold flex items-center gap-2 hover:scale-105 transition-transform group">
@@ -210,6 +217,32 @@ export default function LandingPage() {
         </div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-[#B8860B]/5 blur-[100px] rounded-full translate-x-1/2 -translate-y-1/2" />
         <div className="absolute bottom-0 left-0 w-96 h-96 bg-[#B8860B]/5 blur-[100px] rounded-full -translate-x-1/2 translate-y-1/2" />
+      </section>
+
+      {/* Pays couverts */}
+      <section className="py-16 bg-white border-y border-slate-100">
+        <div className="max-w-6xl mx-auto px-6 text-center">
+          <div className="flex items-center justify-center gap-2 mb-3">
+            <Globe size={20} className="text-[#B8860B]" />
+            <p className="text-xs font-black text-[#B8860B] uppercase tracking-widest">Disponible dans toute l'Afrique de l'Ouest</p>
+          </div>
+          <h2 className="text-2xl font-black text-[#1A1A2E] mb-8">16 pays · Multi-devises · MoMo local</h2>
+          <div className="flex flex-wrap justify-center gap-3">
+            {PAYS_COUVERTS.map((pays, i) => (
+              <motion.span
+                key={i}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.04 }}
+                className="bg-slate-50 border border-slate-100 rounded-2xl px-4 py-2 text-sm font-bold text-slate-700 hover:border-[#B8860B]/30 hover:bg-[#B8860B]/5 transition-all"
+              >
+                {pays}
+              </motion.span>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-6">FCFA · GH₵ · ₦ · GNF · Le et plus — chaque pays avec ses opérateurs MoMo locaux</p>
+        </div>
       </section>
 
       {/* Footer */}

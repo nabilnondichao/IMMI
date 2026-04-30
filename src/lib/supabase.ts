@@ -52,6 +52,21 @@ export interface Profile {
   updated_at: string;
 }
 
+// Helper pour afficher les montants avec la bonne devise
+export function formatMontantPays(montant: number, pays: string): string {
+  // Import dynamique évité — on garde la logique simple ici
+  const FCFA_PAYS = ['Bénin',"Côte d'Ivoire",'Sénégal','Togo','Burkina Faso','Mali','Niger','Guinée-Bissau'];
+  if (FCFA_PAYS.includes(pays)) return `${montant.toLocaleString('fr-FR')} FCFA`;
+  if (pays === 'Ghana') return `GH₵ ${montant.toLocaleString('fr-FR')}`;
+  if (pays === 'Nigeria') return `₦ ${montant.toLocaleString('fr-FR')}`;
+  if (pays === 'Guinée') return `${montant.toLocaleString('fr-FR')} GNF`;
+  if (pays === 'Sierra Leone') return `Le ${montant.toLocaleString('fr-FR')}`;
+  if (pays === 'Liberia') return `L$ ${montant.toLocaleString('fr-FR')}`;
+  if (pays === 'Gambie') return `D ${montant.toLocaleString('fr-FR')}`;
+  if (pays === 'Mauritanie') return `${montant.toLocaleString('fr-FR')} MRU`;
+  return `${montant.toLocaleString('fr-FR')} FCFA`;
+}
+
 export interface MomoConfig {
   id: string;
   proprietaire_id: string;

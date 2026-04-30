@@ -53,6 +53,7 @@ import {
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMaisons, useAllUnites, createMaison, deleteMaison } from '@/hooks/useData';
+import { PAYS_AFRIQUE_OUEST } from '@/lib/countries';
 
 export default function MaisonsList() {
   const navigate = useNavigate();
@@ -178,10 +179,9 @@ export default function MaisonsList() {
                         <SelectValue placeholder="Pays" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="Bénin">Bénin</SelectItem>
-                        <SelectItem value="Côte d'Ivoire">Côte d&apos;Ivoire</SelectItem>
-                        <SelectItem value="Sénégal">Sénégal</SelectItem>
-                        <SelectItem value="Togo">Togo</SelectItem>
+                        {PAYS_AFRIQUE_OUEST.map(p => (
+                          <SelectItem key={p.nom} value={p.nom}>{p.flag} {p.nom}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>

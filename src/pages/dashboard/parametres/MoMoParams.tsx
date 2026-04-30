@@ -1,204 +1,195 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import React, { useState } from 'react';
-import { 
-  Smartphone, 
-  Check, 
-  ShieldCheck, 
-  Eye, 
-  Copy, 
-  Save, 
-  SmartphoneNfc,
-  RefreshCcw,
-  Zap
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import React, { useState, useEffect } from 'react';
+import { Smartphone, Check, ShieldCheck, Save, Trash2, Plus, Loader2, Globe } from 'lucide-react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
-import { OperateurMoMo } from '@/types/immoafrik';
-
-const OPERATORS = [
-  { id: OperateurMoMo.MTN, label: 'MTN Mobile Money', color: 'bg-amber-400', iconColor: 'text-amber-600' },
-  { id: OperateurMoMo.ORANGE, label: 'Orange Money', color: 'bg-orange-500', iconColor: 'text-orange-600' },
-  { id: OperateurMoMo.WAVE, label: 'Wave', color: 'bg-blue-400', iconColor: 'text-blue-600' },
-  { id: OperateurMoMo.MOOV, label: 'Moov Money', color: 'bg-green-500', iconColor: 'text-green-600' },
-];
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useAuth } from '@/contexts/AuthContext';
+import { useMomoConfigs, createMomoConfig, deleteMomoConfig } from '@/hooks/useData';
+import { PAYS_AFRIQUE_OUEST, getOperateurs, getPaysConfig } from '@/lib/countries';
 
 export default function MoMoParams() {
-  const [configs, setConfigs] = useState(
-    OPERATORS.reduce((acc, op) => ({
-      ...acc,
-      [op.id]: { enabled: op.id === OperateurMoMo.MTN, number: '', name: '' }
-    }), {} as any)
-  );
+  const { user, profile } = useAuth();
+  const { momoConfigs, isLoading, refresh } = useMomoConfigs();
 
-  const [previewOp, setPreviewOp] = useState(OperateurMoMo.MTN);
+  const userPays = profile?.pays || 'Bénin';
+  const paysConfig = getPaysConfig(userPays);
+  const operateursDuPays = getOperateurs(userPays);
 
-  const updateConfig = (opId: string, field: string, value: any) => {
-    setConfigs((prev: any) => ({
-      ...prev,
-      [opId]: { ...prev[opId], [field]: value }
-    }));
-  };
+  // Tous les opérateurs disponibles (pays sélectionné + possibilité d'en ajouter d'autres)
+  const [selectedPays, setSelectedPays] = useState(userPays);
+  const operateursAffiches = getOperateurs(selectedPays);
+
+  const [form, setForm] = useState({ operateur: '', numero: '', nom_compte: '' });
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+
+  async function handleAdd(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.operateur || !form.numero || !form.nom_compte) {
+      setError('Tous les champs sont obligatoires.');
+      return;
+    }
+    if (!user) return;
+    setSaving(true); setError(null);
+    try {
+      await createMomoConfig({
+        proprietaire_id: user.id,
+        operateur: form.operateur as any,
+        numero: form.numero,
+        nom_compte: form.nom_compte,
+        is_primary: momoConfigs.length === 0,
+      });
+      setForm({ operateur: '', numero: '', nom_compte: '' });
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+      refresh();
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde.');
+    } finally { setSaving(false); }
+  }
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    try { await deleteMomoConfig(id); refresh(); }
+    finally { setDeleting(null); }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <Loader2 className="animate-spin text-[#B8860B]" size={40} />
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 pb-32 lg:pb-8 max-w-6xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-8">
-        <div>
-          <h1 className="text-2xl font-black text-[#1A1A2E] tracking-tight">Paramètres Mobile Money</h1>
-          <p className="text-sm text-slate-500">Configurez vos comptes de réception pour les paiements des locataires</p>
-        </div>
-        <Button className="bg-[#1A1A2E] text-white font-bold rounded-xl flex items-center gap-2">
-          <Save size={18} />
-          Sauvegarder tout
-        </Button>
+    <div className="p-6 md:p-8 pb-32 lg:pb-8 max-w-3xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-2xl font-black text-[#1A1A2E] tracking-tight">Mobile Money</h1>
+        <p className="text-sm text-slate-500">
+          Configurez vos numéros de réception — {paysConfig.flag} {userPays} · {paysConfig.devise} ({paysConfig.symbole})
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* CONFIGURATION SECTION */}
-        <div className="space-y-6">
-          {OPERATORS.map((op) => (
-            <Card key={op.id} className={`rounded-[2.5rem] border-slate-100 shadow-sm transition-all ${configs[op.id].enabled ? 'ring-2 ring-slate-100' : 'opacity-60'}`}>
-              <CardHeader className="p-6 pb-0 flex flex-row items-center justify-between">
+      {/* Comptes configurés */}
+      {momoConfigs.length > 0 && (
+        <div className="mb-8 space-y-3">
+          <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Comptes actifs</p>
+          {momoConfigs.map(config => {
+            const op = PAYS_AFRIQUE_OUEST.flatMap(p => p.operateurs).find(o => o.id === config.operateur);
+            return (
+              <div key={config.id} className="bg-white rounded-[1.5rem] border border-slate-100 shadow-sm p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className={`w-12 h-12 ${op.color} rounded-2xl flex items-center justify-center font-black text-white text-xs`}>
-                    {op.id}
+                  <div className={`w-11 h-11 ${op?.color || 'bg-slate-400'} rounded-xl flex items-center justify-center font-black text-white text-[10px]`}>
+                    {config.operateur}
                   </div>
                   <div>
-                    <CardTitle className="text-sm font-black text-[#1A1A2E] uppercase tracking-widest">{op.label}</CardTitle>
-                    <CardDescription className="text-[10px] font-bold">Encaissements via {op.id}</CardDescription>
+                    <p className="font-black text-[#1A1A2E] text-sm">{config.operateur}</p>
+                    <p className="text-xs text-slate-500 font-mono">{config.numero}</p>
+                    <p className="text-[10px] text-slate-400">{config.nom_compte}</p>
                   </div>
                 </div>
-                <Switch 
-                  checked={configs[op.id].enabled} 
-                  onCheckedChange={(v) => updateConfig(op.id, 'enabled', v)}
-                />
-              </CardHeader>
-              <CardContent className="p-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Numéro de téléphone</Label>
-                    <Input 
-                      placeholder="+229 00 00 00 00" 
-                      className="rounded-xl font-bold" 
-                      disabled={!configs[op.id].enabled}
-                      value={configs[op.id].number}
-                      onChange={(e) => updateConfig(op.id, 'number', e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom du compte</Label>
-                    <Input 
-                      placeholder="Ex: Jean DUPONT" 
-                      className="rounded-xl font-bold"
-                      disabled={!configs[op.id].enabled}
-                      value={configs[op.id].name}
-                      onChange={(e) => updateConfig(op.id, 'name', e.target.value)}
-                    />
-                  </div>
+                <div className="flex items-center gap-2">
+                  {config.is_primary && (
+                    <span className="text-[9px] font-black bg-[#B8860B]/10 text-[#B8860B] px-2 py-1 rounded-lg">Principal</span>
+                  )}
+                  <button onClick={() => handleDelete(config.id)} disabled={deleting === config.id}
+                    className="w-8 h-8 rounded-xl flex items-center justify-center text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all">
+                    {deleting === config.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                  </button>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
+              </div>
+            );
+          })}
         </div>
+      )}
 
-        {/* PREVIEW SECTION */}
-        <div className="lg:sticky lg:top-24 h-fit">
-          <div className="bg-[#1A1A2E] rounded-[3rem] p-8 text-white shadow-2xl relative overflow-hidden">
-            <div className="absolute -top-24 -right-24 w-64 h-64 bg-[#B8860B]/10 rounded-full blur-3xl"></div>
-            
-            <div className="relative">
-              <div className="flex items-center gap-2 mb-8">
-                <Eye size={20} className="text-[#B8860B]" />
-                <h3 className="text-sm font-black uppercase tracking-[0.2em]">Aperçu Locataire</h3>
-              </div>
+      {/* Formulaire ajouter */}
+      <Card className="rounded-[2rem] border-slate-100 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base font-black text-[#1A1A2E] flex items-center gap-2">
+            <Plus size={18} className="text-[#B8860B]" /> Ajouter un compte MoMo
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAdd} className="space-y-4">
+            {error && <div className="p-3 bg-red-50 rounded-xl text-red-600 text-xs font-medium">{error}</div>}
 
-              <div className="space-y-8">
-                <div>
-                  <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mb-4">Étape : Paiement MoMo</p>
-                  <div className="bg-white/5 border border-white/10 rounded-3xl p-6">
-                    <div className="bg-[#B8860B]/10 border border-[#B8860B]/30 rounded-2xl p-4 mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="text-[10px] font-black uppercase tracking-widest text-[#B8860B]">Instructions</span>
-                        <div className={`px-2 py-1 ${OPERATORS.find(o => o.id === previewOp)?.color} rounded-lg text-[8px] font-black`}>
-                          {previewOp}
-                        </div>
-                      </div>
-                      <div className="space-y-4">
-                        <div className="flex items-start gap-3">
-                          <div className="w-5 h-5 bg-[#B8860B] rounded-full flex items-center justify-center text-[10px] shrink-0 font-black">1</div>
-                          <p className="text-xs font-medium">Ouvrez votre application {previewOp} Money</p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <div className="w-5 h-5 bg-[#B8860B] rounded-full flex items-center justify-center text-[10px] shrink-0 font-black">2</div>
-                          <p className="text-xs font-medium">
-                            Envoyez le montant au <span className="text-[#B8860B] font-bold">{configs[previewOp].number || 'XXXXXXXX'}</span>
-                          </p>
-                        </div>
-                        <div className="flex items-start gap-3">
-                          <div className="w-5 h-5 bg-[#B8860B] rounded-full flex items-center justify-center text-[10px] shrink-0 font-black">3</div>
-                          <p className="text-xs font-medium">
-                            Nom du bénéficiaire : <span className="font-bold">{configs[previewOp].name || 'NOM DU PROPRIÉTAIRE'}</span>
-                          </p>
-                        </div>
-                      </div>
+            {/* Sélecteur de pays pour voir les opérateurs */}
+            <div className="space-y-1">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400 flex items-center gap-1">
+                <Globe size={11} /> Opérateurs disponibles par pays
+              </Label>
+              <Select value={selectedPays} onValueChange={setSelectedPays}>
+                <SelectTrigger className="rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {PAYS_AFRIQUE_OUEST.map(p => (
+                    <SelectItem key={p.nom} value={p.nom}>{p.flag} {p.nom}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-1">
+              <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Opérateur *</Label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {operateursAffiches.map(op => (
+                  <button key={op.id} type="button"
+                    onClick={() => setForm(f => ({ ...f, operateur: op.id }))}
+                    className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${
+                      form.operateur === op.id
+                        ? 'border-[#B8860B] bg-[#B8860B]/5'
+                        : 'border-slate-100 bg-white hover:border-slate-300'
+                    }`}>
+                    <div className={`w-8 h-8 ${op.color} rounded-xl flex items-center justify-center font-black text-white text-[9px] shrink-0`}>
+                      {op.id.slice(0, 3)}
                     </div>
-
-                    <div className="space-y-2">
-                       <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Référence à saisir exactement :</Label>
-                       <div className="bg-white/5 border border-dashed border-white/20 p-4 rounded-xl flex items-center justify-between group">
-                         <span className="font-mono text-lg font-black tracking-widest">IMMO-RES1-202504-R2-001</span>
-                         <button className="p-2 hover:bg-white/10 rounded-lg transition-colors text-[#B8860B]">
-                           <Copy size={18} />
-                         </button>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 border-t border-white/5 flex flex-col gap-4">
-                  <p className="text-[10px] font-bold text-slate-400">Changer l'opérateur pour l'aperçu :</p>
-                  <div className="flex gap-2">
-                    {OPERATORS.filter(op => configs[op.id].enabled).map(op => (
-                      <button 
-                        key={op.id}
-                        onClick={() => setPreviewOp(op.id)}
-                        className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${previewOp === op.id ? 'ring-2 ring-[#B8860B] bg-white/5' : 'bg-white/5 opacity-40'}`}
-                      >
-                        <div className={`w-6 h-6 ${op.color} rounded-md`}></div>
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                    <span className="text-xs font-bold text-slate-700 leading-tight">{op.label}</span>
+                  </button>
+                ))}
               </div>
             </div>
 
-            <div className="mt-12 flex gap-4">
-               <Button className="flex-1 bg-white/5 hover:bg-white/10 border border-white/10 text-white rounded-2xl font-bold py-6 text-xs gap-2">
-                 <SmartphoneNfc size={18} />
-                 Simuler une demande
-               </Button>
-               <Button className="bg-[#B8860B] text-white rounded-2xl px-6 font-bold">
-                 <Zap size={18} />
-               </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Numéro de téléphone *</Label>
+                <Input className="rounded-xl font-mono" placeholder={`${paysConfig.indicatif} XX XX XX XX`}
+                  value={form.numero} onChange={e => setForm(f => ({ ...f, numero: e.target.value }))} />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Nom du compte *</Label>
+                <Input className="rounded-xl" placeholder="Ex: Jean DUPONT"
+                  value={form.nom_compte} onChange={e => setForm(f => ({ ...f, nom_compte: e.target.value }))} />
+              </div>
             </div>
-          </div>
 
-          <div className="mt-8 p-6 bg-blue-50 border border-blue-100 rounded-3xl flex items-start gap-4">
-            <div className="p-2 bg-blue-600 rounded-xl text-white">
-              <ShieldCheck size={20} />
-            </div>
-            <div>
-              <p className="text-xs font-black text-blue-900 uppercase tracking-widest mb-1">Sécurité Garantie</p>
-              <p className="text-xs text-blue-700 leading-relaxed font-medium"> Les numéros de téléphone saisis ici seront les seuls autorisés pour les paiements MoMo. Les locataires ne pourront pas valider leur preuve de paiement s'ils ne copient pas le bon code de référence.</p>
-            </div>
-          </div>
+            <Button type="submit" disabled={saving || !form.operateur}
+              className="w-full bg-[#1A1A2E] text-white font-bold rounded-xl py-5 flex items-center justify-center gap-2">
+              {saving ? <Loader2 className="animate-spin" size={18} /> :
+                success ? <><Check size={18} /> Sauvegardé !</> :
+                <><Save size={18} /> Ajouter ce compte</>}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+
+      {/* Info sécurité */}
+      <div className="mt-6 p-5 bg-blue-50 border border-blue-100 rounded-2xl flex items-start gap-4">
+        <div className="p-2 bg-blue-600 rounded-xl text-white shrink-0">
+          <ShieldCheck size={18} />
+        </div>
+        <div>
+          <p className="text-xs font-black text-blue-900 uppercase tracking-widest mb-1">Sécurité</p>
+          <p className="text-xs text-blue-700 leading-relaxed">
+            Ces numéros seront affichés à vos locataires lors du paiement. Vérifiez qu'ils sont corrects avant de les activer.
+          </p>
         </div>
       </div>
     </div>

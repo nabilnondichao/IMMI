@@ -7,6 +7,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
 import { linkLocataireToUser, marquerInvitationUtilisee } from '../../hooks/useData';
+import { PAYS_AFRIQUE_OUEST } from '../../lib/countries';
 
 export default function Inscription() {
   const [activeTab, setActiveTab] = useState<'proprio' | 'locataire'>('proprio');
@@ -237,13 +238,9 @@ export default function Inscription() {
                 <label className="text-[10px] font-black uppercase tracking-widest text-slate-400">Pays *</label>
                 <select required className={inputClass}
                   value={proprioForm.pays} onChange={e => setProprioForm(f => ({ ...f, pays: e.target.value }))}>
-                  <option value="Bénin">Bénin</option>
-                  <option value="Côte d'Ivoire">Côte d'Ivoire</option>
-                  <option value="Sénégal">Sénégal</option>
-                  <option value="Togo">Togo</option>
-                  <option value="Cameroun">Cameroun</option>
-                  <option value="Mali">Mali</option>
-                  <option value="Guinée">Guinée</option>
+                  {PAYS_AFRIQUE_OUEST.map(p => (
+                    <option key={p.nom} value={p.nom}>{p.flag} {p.nom}</option>
+                  ))}
                 </select>
               </div>
               <div className="space-y-1">
