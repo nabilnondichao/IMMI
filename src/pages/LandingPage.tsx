@@ -104,9 +104,9 @@ export default function LandingPage() {
               transition={{ delay: 0.3 }}
               className="relative z-10 rounded-3xl overflow-hidden shadow-2xl border border-white/10"
             >
-              <img 
-                src="https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1200" 
-                alt="Architecture moderne Afrique" 
+              <img
+                src={`${import.meta.env.BASE_URL}hero.jpg`}
+                alt="Architecture moderne Afrique"
                 className="w-full h-auto"
               />
             </motion.div>
